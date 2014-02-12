@@ -8,3 +8,12 @@
 /Users/Betai/Developer/Projects/Xamarin.Socket.IO/Xamarin.Socket.IO/Xamarin.Socket.IO/bin/Debug/SuperSocket.ClientEngine.Protocol.dll
 /Users/Betai/Developer/Projects/Xamarin.Socket.IO/Xamarin.Socket.IO/Xamarin.Socket.IO/bin/Debug/SuperSocket.ClientEngine.Proxy.dll
 /Users/Betai/Developer/Projects/Xamarin.Socket.IO/Xamarin.Socket.IO/Xamarin.Socket.IO/bin/Debug/WebSocket4Net.MonoTouch.dll
+/Users/Betai/Developer/Projects/Xamarin.Socket.IO/Xamarin.Socket.IO/Xamarin.Socket.IO/bin/Debug/Newtonsoft.Json.dll
+/Users/Betai/Developer/Projects/Xamarin.Socket.IO/Xamarin.Socket.IO/Xamarin.Socket.IO/bin/Debug/System.IO.dll
+/Users/Betai/Developer/Projects/Xamarin.Socket.IO/Xamarin.Socket.IO/Xamarin.Socket.IO/bin/Debug/System.Runtime.dll
+/Users/Betai/Developer/Projects/Xamarin.Socket.IO/Xamarin.Socket.IO/Xamarin.Socket.IO/bin/Debug/System.Threading.Tasks.dll
+/Users/Betai/Developer/Projects/Xamarin.Socket.IO/Xamarin.Socket.IO/Xamarin.Socket.IO/bin/Debug/System.Net.Http.dll
+/Users/Betai/Developer/Projects/Xamarin.Socket.IO/Xamarin.Socket.IO/Xamarin.Socket.IO/bin/Debug/System.Net.Http.Primitives.dll
+/Users/Betai/Developer/Projects/Xamarin.Socket.IO/Xamarin.Socket.IO/Xamarin.Socket.IO/bin/Debug/System.Net.Http.Extensions.dll
+/Users/Betai/Developer/Projects/Xamarin.Socket.IO/Xamarin.Socket.IO/Xamarin.Socket.IO/bin/Debug/Microsoft.Threading.Tasks.dll
+/Users/Betai/Developer/Projects/Xamarin.Socket.IO/Xamarin.Socket.IO/Xamarin.Socket.IO/bin/Debug/Microsoft.Threading.Tasks.Extensions.dll
