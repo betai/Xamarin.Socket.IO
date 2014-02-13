@@ -3,6 +3,7 @@ using WebSocket4Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace Xamarin.Socket.IO
 {
@@ -29,7 +30,38 @@ namespace Xamarin.Socket.IO
 
 		#endregion
 
-		#region Public properties
+		#region Constructors
+
+		public SocketIO () : this (@"127.0.0.1", 3000)
+		{
+		}
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="Xamarin.Socket.IO.SocketIO"/> class.
+		/// Defaults to http over https
+		/// </summary>
+		/// <param name="host">Host.</param>
+		/// <param name="port">Port.</param>
+		/// <param name="secure">If set to <c>true</c> secure.</param>
+		/// <param name="parameters">Parameters.</param>
+		/// <param name="connectionType">Connection type.</param>
+		public SocketIO (string host, int port, bool secure = false, List<string> parameters = null, ConnectionType connectionType = ConnectionType.WebSocket)
+		{
+			Secure = secure;
+			Host = host;
+			Port = port;
+			Parameters = parameters;
+			DefaultConnectionType = connectionType;
+		}
+
+		#endregion
+
+
+		#region Public
+
+		/**
+		 * Properties 
+		**/
 
 		public enum ConnectionStatus {
 			Connected, NotConnected
@@ -41,23 +73,18 @@ namespace Xamarin.Socket.IO
 
 		public string ConnectionErrorString;
 
-		#endregion
 
-		public SocketIO () : this (@"127.0.0.1", 3000)
-		{
-		}
-
-		public SocketIO (string host, int port, bool secure = false, List<string> parameters = null, ConnectionType connectionType = ConnectionType.WebSocket)
-		{
-			Secure = secure;
-			Host = host;
-			Port = port;
-			Parameters = parameters;
-			DefaultConnectionType = connectionType;
-		}
+		/**
+		 * Methods 
+		**/
 
 		string socketIOConnectionString = "socket.io/1";
 
+
+		/// <summary>
+		/// Connects to http://host:port/ or https://host:port asynchronously depending on the security parameter passed in the constructor
+		/// </summary>
+		/// <returns>ConnectionStatus</returns>
 		public async Task<ConnectionStatus> ConnectAsync ()
 		{
 			if (!Connected && !Connecting) {
@@ -101,6 +128,33 @@ namespace Xamarin.Socket.IO
 			return ConnectionStatus.Connected; 
 		}
 
+
+		/// <summary>
+		/// Emit the event named <param name="name">Name.</param> with args <param name="args">Arguments.</param>.
+		/// <param name="args">Arguments.</param> *must* be JsonSerializeable
+		/// </summary>
+		/// <param name="name">Name.</param>
+		/// <param name="args">Arguments.</param>
+		public void Emit (string name, object args)
+		{
+			var json = JsonConvert.SerializeObject (args);
+			Emit (name, json);
+		}
+
+		/// <summary>
+		/// Emit the event name with Json formatted string as arguments.
+		/// </summary>
+		/// <param name="name">Name.</param>
+		/// <param name="jsonArgs">Json arguments.</param>
+		public void Emit (string name, string jsonArgs)
+		{
+			WebSocket.Send (string.Format ("5:::{\"name\":\"{0}\",\"args\":[{1}]}", name, jsonArgs));
+		}
+
+		#endregion
+
+		#region Helper functions
+
 		void AddCallbacksToWebSocket (ref WebSocket socket) 
 		{
 			socket.Opened += (object sender, EventArgs e) => {
@@ -109,6 +163,8 @@ namespace Xamarin.Socket.IO
 			socket.DataReceived += (object sender, DataReceivedEventArgs e) => {
 			};
 		}
+
+		#endregion
 	}
 }
 
