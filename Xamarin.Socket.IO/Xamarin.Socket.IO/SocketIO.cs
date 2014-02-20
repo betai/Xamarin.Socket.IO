@@ -107,10 +107,12 @@ namespace Xamarin.Socket.IO
 
 						var websocketScheme = Secure ? @"wss" : @"ws";
 						var websocketUri = string.Format (@"{0}://{1}:{2}/{3}/websocket/{4}", websocketScheme, Host, Port, socketIOConnectionString, sessionID);
-						
 						WebSocket = new WebSocket (websocketUri);
 						Manager = new Manager (heartbeatTime, timeoutTime);
 						AddCallbacksToWebSocket (ref WebSocket);
+						WebSocket.DataReceived += (object sender, DataReceivedEventArgs e) => {
+							DebugReceived = e.Data.ToString ();
+						};
 						WebSocket.Open ();
 
 						Connecting = false;
@@ -127,7 +129,6 @@ namespace Xamarin.Socket.IO
 			}
 			return ConnectionStatus.Connected; 
 		}
-
 
 		/// <summary>
 		/// Emit the event named <param name="name">Name.</param> with args <param name="args">Arguments.</param>.
@@ -148,19 +149,33 @@ namespace Xamarin.Socket.IO
 		/// <param name="jsonArgs">Json arguments.</param>
 		public void Emit (string name, string jsonArgs)
 		{
-			WebSocket.Send (string.Format ("5:::{\"name\":\"{0}\",\"args\":[{1}]}", name, jsonArgs));
+			//remove public
+			WebSocket.Send ("5:::{\"name\":\"news\",\"args\":[{\"hello\":\"world\"}]}");
+//			WebSocket.Send (string.Format(@"5:::{""name"":""{0}"",""args"":[{1}]}", name, jsonArgs));
+
 		}
+
+		public void SendHeartBeat ()
+		{
+			WebSocket.Send ("2:::");
+		}
+
 
 		#endregion
 
 		#region Helper functions
 
+		public string DebugOpened;
+		public string DebugReceived;
+
 		void AddCallbacksToWebSocket (ref WebSocket socket) 
 		{
 			socket.Opened += (object sender, EventArgs e) => {
+				DebugOpened = "opened";
 			};
 
-			socket.DataReceived += (object sender, DataReceivedEventArgs e) => {
+			socket.DataReceived += delegate {
+				DebugReceived = "blah";
 			};
 		}
 
