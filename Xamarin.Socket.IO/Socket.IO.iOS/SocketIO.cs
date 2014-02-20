@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace Xamarin.Socket.IO
+namespace Socket.IO.iOS
 {
 	public class SocketIO
 	{
@@ -112,14 +112,17 @@ namespace Xamarin.Socket.IO
 //						AddCallbacksToWebSocket (ref WebSocket);
 						WebSocket.DataReceived += (object sender, DataReceivedEventArgs e) => {
 							DebugReceived = e.Data.ToString ();
+							Console.WriteLine ("DataReceived");
 						};
 
 						WebSocket.MessageReceived += (object sender, MessageReceivedEventArgs e) => {
 							DebugReceived = e.Message;
+							Console.WriteLine ("Message Received {0}", e.Message);
 						};
 
 						WebSocket.Opened += (object sender, EventArgs e) => {
 							DebugOpened = "opened";
+							Console.WriteLine ("Opened");
 						};
 						WebSocket.Open ();
 

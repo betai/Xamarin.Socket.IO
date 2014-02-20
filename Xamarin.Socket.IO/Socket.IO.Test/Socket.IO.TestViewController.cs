@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using MonoTouch.Foundation;
 using MonoTouch.UIKit;
+//using Socket.IO.iOS;
 using Xamarin.Socket.IO;
 
 namespace Socket.IO.Test
