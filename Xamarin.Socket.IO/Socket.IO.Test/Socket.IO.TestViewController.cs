@@ -4,6 +4,8 @@ using MonoTouch.Foundation;
 using MonoTouch.UIKit;
 //using Socket.IO.iOS;
 using Xamarin.Socket.IO;
+using Newtonsoft.Json;
+using System.Collections.Generic;
 
 namespace Socket.IO.Test
 {
@@ -57,7 +59,12 @@ namespace Socket.IO.Test
 
 			sendButton.SetTitle ("send message", UIControlState.Normal);
 			sendButton.TouchUpInside += (object sender, EventArgs evtArgs) => {
-				Socket.Emit ("news", @"{hello:world}");
+				var list = new List <Foo> () {
+					new Foo (){
+						Bar = "baz"
+					}
+				};
+				Socket.Emit ("news", list);
 			};
 
 			var heartbeatButton = new UIButton () {
@@ -72,6 +79,14 @@ namespace Socket.IO.Test
 
 			button.Center = View.Center;
 			View.AddSubviews (button, sendButton, heartbeatButton);
+		}
+
+
+		[JsonObject(MemberSerialization.OptIn)]
+		public class Foo
+		{
+			[JsonProperty]
+			public string Bar { get; set; }
 		}
 
 		public override void ViewDidAppear (bool animated)

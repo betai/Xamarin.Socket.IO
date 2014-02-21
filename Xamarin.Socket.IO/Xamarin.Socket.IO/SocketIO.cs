@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using System.Collections;
 
 namespace Xamarin.Socket.IO
 {
@@ -12,6 +13,13 @@ namespace Xamarin.Socket.IO
 
 		WebSocket WebSocket;
 		Manager Manager;
+
+		#region Constants
+
+		string socketIOConnectionString = "socket.io/1";
+
+		#endregion
+
 
 		#region Connection Params
 
@@ -23,6 +31,7 @@ namespace Xamarin.Socket.IO
 
 		#endregion
 
+
 		#region Connection status
 
 		bool Connected { get; set; }
@@ -30,9 +39,10 @@ namespace Xamarin.Socket.IO
 
 		#endregion
 
+
 		#region Constructors
 
-		public SocketIO () : this (@"127.0.0.1", 3000)
+		public SocketIO () : this ("127.0.0.1", 3000)
 		{
 		}
 
@@ -52,16 +62,31 @@ namespace Xamarin.Socket.IO
 			Port = port;
 			Parameters = parameters;
 			DefaultConnectionType = connectionType;
+
+			JsonConvert.DefaultSettings = () => {
+				return new JsonSerializerSettings () {
+					StringEscapeHandling = StringEscapeHandling.EscapeNonAscii
+				};
+			};
 		}
+
+		#endregion
+
+
+		#region Socket Callbacks
+
+		public event Action<object, EventArgs> SocketConnected = delegate {};
+		public event Action<object, MessageReceivedEventArgs> SocketReceivedMessage = delegate {};
+		public event Action<object, DataReceivedEventArgs> SocketReceivedData = delegate {};
 
 		#endregion
 
 
 		#region Public
 
-		/**
+		/*************
 		 * Properties 
-		**/
+		*************/
 
 		public enum ConnectionStatus {
 			Connected, NotConnected
@@ -74,12 +99,9 @@ namespace Xamarin.Socket.IO
 		public string ConnectionErrorString;
 
 
-		/**
+		/***********
 		 * Methods 
-		**/
-
-		string socketIOConnectionString = "socket.io/1";
-
+		***********/
 
 		/// <summary>
 		/// Connects to http://host:port/ or https://host:port asynchronously depending on the security parameter passed in the constructor
@@ -90,8 +112,8 @@ namespace Xamarin.Socket.IO
 			if (!Connected && !Connecting) {
 				Connecting = true;
 
-				var scheme = Secure ? @"https" : @"http";
-				var handshakeUri = string.Format (@"{0}://{1}:{2}/{3}", scheme, Host, Port, socketIOConnectionString);
+				var scheme = Secure ? "https" : "http";
+				var handshakeUri = string.Format ("{0}://{1}:{2}/{3}", scheme, Host, Port, socketIOConnectionString);
 
 				var responseBody = "";
 
@@ -105,22 +127,13 @@ namespace Xamarin.Socket.IO
 						var heartbeatTime = Convert.ToInt32 (responseElements [1]);
 						var timeoutTime = Convert.ToInt32 (responseElements [2]);
 
-						var websocketScheme = Secure ? @"wss" : @"ws";
-						var websocketUri = string.Format (@"{0}://{1}:{2}/{3}/websocket/{4}", websocketScheme, Host, Port, socketIOConnectionString, sessionID);
-						WebSocket = new WebSocket (websocketUri);
 						Manager = new Manager (heartbeatTime, timeoutTime);
-//						AddCallbacksToWebSocket (ref WebSocket);
-						WebSocket.DataReceived += (object sender, DataReceivedEventArgs e) => {
-							DebugReceived = e.Data.ToString ();
-						};
 
-						WebSocket.MessageReceived += (object sender, MessageReceivedEventArgs e) => {
-							DebugReceived = e.Message;
-						};
+						var websocketScheme = Secure ? "wss" : "ws";
+						var websocketUri = string.Format ("{0}://{1}:{2}/{3}/websocket/{4}", websocketScheme, Host, Port, socketIOConnectionString, sessionID);
+						WebSocket = new WebSocket (websocketUri);
+						AddCallbacksToSocket (ref WebSocket);
 
-						WebSocket.Opened += (object sender, EventArgs e) => {
-							DebugOpened = "opened";
-						};
 						WebSocket.Open ();
 
 						Connecting = false;
@@ -144,28 +157,30 @@ namespace Xamarin.Socket.IO
 		/// </summary>
 		/// <param name="name">Name.</param>
 		/// <param name="args">Arguments.</param>
-		public void Emit (string name, object args)
+		public void Emit (string name, IEnumerable args)
 		{
-			var json = JsonConvert.SerializeObject (args);
-			Emit (name, json);
+			WebSocket.Send (string.Format ("5:::{{\"name\":\"{0}\",\"args\":[{1}]}}", name, "blah"));
+			var variable = string.Format ("5:::{{\"name\":\"{0}\",\"args\":[{1}]}}", name, "blah");
+			Emit (new Message (name, args));
 		}
 
 		/// <summary>
-		/// Emit the event name with Json formatted string as arguments.
+		/// Emit the specified messageObject.
 		/// </summary>
-		/// <param name="name">Name.</param>
-		/// <param name="jsonArgs">Json arguments.</param>
-		public void Emit (string name, string jsonArgs)
+		/// <param name="messageObject">Message object.</param>
+		void Emit (Message messageObject)
 		{
-			//remove public
-			WebSocket.Send ("5:::{\"name\":\"news\",\"args\":[{\"hello\":\"world\"}]}");
-//			WebSocket.Send (string.Format(@"5:::{""name"":""{0}"",""args"":[{1}]}", name, jsonArgs));
-
+			string message = JsonConvert.SerializeObject (messageObject);
+			var blah = string.Format ("5:::{0}", message);
+			if (Connected)
+				WebSocket.Send (string.Format ("5:::{0}", message));
+			
 		}
 
 		public void SendHeartBeat ()
 		{
-			WebSocket.Send ("2:::");
+			if (Connected)
+				WebSocket.Send ("2:::");
 		}
 
 
@@ -173,18 +188,45 @@ namespace Xamarin.Socket.IO
 
 		#region Helper functions
 
-		public string DebugOpened;
-		public string DebugReceived;
-
-		void AddCallbacksToWebSocket (ref WebSocket socket) 
+		void AddCallbacksToSocket (ref WebSocket socket)
 		{
-			socket.Opened += (object sender, EventArgs e) => {
-				DebugOpened = "opened";
-			};
+			socket.Opened += SocketOpen;
+			socket.MessageReceived += SocketMessage;
+			socket.DataReceived += SocketData;
+		}
 
-			socket.DataReceived += delegate {
-				DebugReceived = "blah";
-			};
+		void SocketOpen (object o, EventArgs e)
+		{
+			SocketConnected (o, e);
+		}
+
+		void SocketMessage (object o, MessageReceivedEventArgs e)
+		{
+			SocketReceivedMessage (o, e);
+		}
+
+		void SocketData (object o, DataReceivedEventArgs e)
+		{
+			SocketReceivedData (o, e);
+		}
+	
+		#endregion
+
+		#region Helper classes
+
+		class Message
+		{
+			public string name { get; set; }
+			public IEnumerable args { get; set; }
+
+			public Message () : this ("", null) {	}
+
+			public Message (string Name, IEnumerable Args)
+			{
+				name = Name;
+				args = Args;
+			}
+
 		}
 
 		#endregion

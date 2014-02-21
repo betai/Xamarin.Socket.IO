@@ -20,7 +20,8 @@ io.on('connection', function(socket){
   socket.on('anything', function(data){
     console.log('anything');
   });
-  socket.on('news', function (){
+  socket.on('news', function (data){
+    console.log(data);
     console.log('news received, emitting news_response now');
     socket.emit('news_response', { hello : 'world'});
   });
