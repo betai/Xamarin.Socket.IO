@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using System.Collections;
+using System.Diagnostics;
+using System.Threading;
 
 namespace Xamarin.Socket.IO
 {
@@ -103,6 +105,8 @@ namespace Xamarin.Socket.IO
 		 * Methods 
 		***********/
 
+//		Timer HeartbeatTimer;
+
 		/// <summary>
 		/// Connects to http://host:port/ or https://host:port asynchronously depending on the security parameter passed in the constructor
 		/// </summary>
@@ -124,10 +128,16 @@ namespace Xamarin.Socket.IO
 
 						var responseElements = responseBody.Split (':');
 						var sessionID = responseElements[0];
-						var heartbeatTime = Convert.ToInt32 (responseElements [1]);
-						var timeoutTime = Convert.ToInt32 (responseElements [2]);
+						var heartbeatTime = Convert.ToInt32 (responseElements [1]) * 1000;
+						var timeoutTime = Convert.ToInt32 (responseElements [2]) * 1000;
+
+						Debug.WriteLine (heartbeatTime);
 
 						Manager = new Manager (heartbeatTime, timeoutTime);
+
+						var HeartbeatTimer = new Timer ((obj) => {
+							SendHeartBeat ();
+						}, null, heartbeatTime / 2, heartbeatTime / 2);
 
 						var websocketScheme = Secure ? "wss" : "ws";
 						var websocketUri = string.Format ("{0}://{1}:{2}/{3}/websocket/{4}", websocketScheme, Host, Port, socketIOConnectionString, sessionID);
@@ -159,8 +169,6 @@ namespace Xamarin.Socket.IO
 		/// <param name="args">Arguments.</param>
 		public void Emit (string name, IEnumerable args)
 		{
-			WebSocket.Send (string.Format ("5:::{{\"name\":\"{0}\",\"args\":[{1}]}}", name, "blah"));
-			var variable = string.Format ("5:::{{\"name\":\"{0}\",\"args\":[{1}]}}", name, "blah");
 			Emit (new Message (name, args));
 		}
 
@@ -171,7 +179,7 @@ namespace Xamarin.Socket.IO
 		void Emit (Message messageObject)
 		{
 			string message = JsonConvert.SerializeObject (messageObject);
-			var blah = string.Format ("5:::{0}", message);
+			Debug.WriteLine( string.Format ("5:::{0}", message));
 			if (Connected)
 				WebSocket.Send (string.Format ("5:::{0}", message));
 			
