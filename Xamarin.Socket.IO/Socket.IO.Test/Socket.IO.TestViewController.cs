@@ -6,6 +6,7 @@ using MonoTouch.UIKit;
 using Xamarin.Socket.IO;
 using Newtonsoft.Json;
 using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
 
 namespace Socket.IO.Test
 {
@@ -41,6 +42,13 @@ namespace Socket.IO.Test
 			base.ViewWillAppear (animated);
 
 			Socket = new SocketIO (host : "127.0.0.1", port : 3000);
+			Socket.SocketConnected += (arg1, arg2) => {
+				Console.WriteLine ("socket connected, in view controller");
+			};
+
+			Socket.SocketReceivedMessage += (o, jObj) => {
+				Console.WriteLine (jObj ["name"]);
+			};
 
 			var button = new UIButton () {
 				Frame = new RectangleF (0, 0, View.Bounds.Width / 4, 44),
@@ -57,13 +65,14 @@ namespace Socket.IO.Test
 				BackgroundColor = UIColor.Gray
 			};
 
-			sendButton.SetTitle ("send message", UIControlState.Normal);
+			sendButton.SetTitle ("message", UIControlState.Normal);
 			sendButton.TouchUpInside += (object sender, EventArgs evtArgs) => {
-				var list = new List <Foo> () {
-					new Foo (){
-						Bar = "baz"
-					}
-				};
+//				var list = new List <Foo> () {
+//					new Foo (){
+//						Bar = "baz"
+//					}
+//				};
+				var list = new object [] { 1, "asdlkfjdskf", 3.4f, new Foo () { Bar = "baz"} };
 				Socket.Emit ("news", list);
 			};
 
@@ -72,7 +81,7 @@ namespace Socket.IO.Test
 				BackgroundColor = UIColor.Gray
 			};
 
-			heartbeatButton.SetTitle ("send heartbeat", UIControlState.Normal);
+			heartbeatButton.SetTitle ("heartbeat", UIControlState.Normal);
 			heartbeatButton.TouchUpInside += (object sender, EventArgs evtArgs) => {
 				Socket.SendHeartBeat ();
 			};

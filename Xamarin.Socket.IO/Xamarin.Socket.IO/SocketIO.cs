@@ -7,6 +7,8 @@ using Newtonsoft.Json;
 using System.Collections;
 using System.Diagnostics;
 using System.Threading;
+using Newtonsoft.Json.Linq;
+using System.Text.RegularExpressions;
 
 namespace Xamarin.Socket.IO
 {
@@ -77,9 +79,20 @@ namespace Xamarin.Socket.IO
 
 		#region Socket Callbacks
 
-		public event Action<object, EventArgs> SocketConnected = delegate {};
-		public event Action<object, MessageReceivedEventArgs> SocketReceivedMessage = delegate {};
-		public event Action<object, DataReceivedEventArgs> SocketReceivedData = delegate {};
+		/// <summary>
+		/// Occurs when socket connected. The enpoint is passed in the argument
+		/// </summary>
+		public event Action<object, string> SocketConnected = delegate {};
+
+		/// <summary>
+		/// Occurs when socket received a message (socket.emit ('foo', args) on the server). JObject is in NewtonSoft.Json.Linq
+		/// </summary>
+		public event Action<object, JObject> SocketReceivedMessage = delegate {};
+
+		/// <summary>
+		/// Occurs when socket received data
+		/// </summary>
+		public event Action<object, byte[]> SocketReceivedData = delegate {};
 
 		#endregion
 
@@ -128,14 +141,12 @@ namespace Xamarin.Socket.IO
 
 						var responseElements = responseBody.Split (':');
 						var sessionID = responseElements[0];
-						var heartbeatTime = Convert.ToInt32 (responseElements [1]) * 1000;
-						var timeoutTime = Convert.ToInt32 (responseElements [2]) * 1000;
-
-						Debug.WriteLine (heartbeatTime);
+						var heartbeatTime = int.Parse(responseElements [1]) * 1000; // convert heartbeatTime to milliseconds
+						var timeoutTime = int.Parse (responseElements [2]) * 1000;
 
 						Manager = new Manager (heartbeatTime, timeoutTime);
 
-						var HeartbeatTimer = new Timer ((obj) => {
+						var HeartbeatTimer = new Timer (_ => {
 							SendHeartBeat ();
 						}, null, heartbeatTime / 2, heartbeatTime / 2);
 
@@ -203,19 +214,40 @@ namespace Xamarin.Socket.IO
 			socket.DataReceived += SocketData;
 		}
 
+		// internal
 		void SocketOpen (object o, EventArgs e)
 		{
-			SocketConnected (o, e);
 		}
+
+		const string socketIOEncodingPattern = @"^([0-9]):([0-9]+[+]?)?:([^:]*)?(:[^\n]*)?";
 
 		void SocketMessage (object o, MessageReceivedEventArgs e)
 		{
-			SocketReceivedMessage (o, e);
+			var match = Regex.Match (e.Message, socketIOEncodingPattern);
+
+			var messageType = int.Parse (match.Groups [1].Value);
+			var messageId = match.Groups [2].Value;
+			var endPoint = match.Groups [3].Value;
+			var	data = (match.Groups [4].Value);
+
+			if (data != "")
+				data = data.Substring (1); //ignore leading ':'
+
+			switch (messageType) {
+			case 1:
+				SocketConnected (o, endPoint);
+				break;
+			case 5:
+				JObject jObj = JObject.Parse (data);
+				SocketReceivedMessage (o, jObj);
+				break;
+			}
+
 		}
 
 		void SocketData (object o, DataReceivedEventArgs e)
 		{
-			SocketReceivedData (o, e);
+			SocketReceivedData (o, e.Data);
 		}
 	
 		#endregion
