@@ -4,8 +4,9 @@ using System.Collections.Generic;
 
 namespace Xamarin.Socket.IO
 {
-	public class Manager
+	public class MessageBroker
 	{
+
 		Timer HeartbeatTimer { get; set; }
 		int HeartbeatInterval { get; set; }
 		int TimeoutInterval { get; set; }
@@ -14,7 +15,7 @@ namespace Xamarin.Socket.IO
 
 		const float percentage = 0.75f;
 
-		public Manager (int heartbeatInterval, int timeoutInterval)
+		public MessageBroker (int heartbeatInterval, int timeoutInterval)
 		{
 			HeartbeatInterval = heartbeatInterval;
 			TimeoutInterval = timeoutInterval;

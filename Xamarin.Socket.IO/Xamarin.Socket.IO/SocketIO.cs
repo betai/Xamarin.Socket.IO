@@ -20,7 +20,8 @@ namespace Xamarin.Socket.IO
 
 		#region Constants
 
-		string socketIOConnectionString = "socket.io/1";
+		const string socketIOConnectionString = "socket.io/1";
+		const string socketIOEncodingPattern = @"^([0-9]):([0-9]+[+]?)?:([^:]*)?(:[^\n]*)?";
 
 		#endregion
 
@@ -46,7 +47,7 @@ namespace Xamarin.Socket.IO
 
 		#region Constructors
 
-		public SocketIO () : this ("127.0.0.1", 3000)
+		public SocketIO () : this ("127.0.0.1", 80)
 		{
 		}
 
@@ -59,7 +60,7 @@ namespace Xamarin.Socket.IO
 		/// <param name="secure">If set to <c>true</c> secure.</param>
 		/// <param name="parameters">Parameters.</param>
 		/// <param name="connectionType">Connection type.</param>
-		public SocketIO (string host, int port, bool secure = false, List<string> parameters = null, ConnectionType connectionType = ConnectionType.WebSocket)
+		public SocketIO (string host, int port = 80, bool secure = false, List<string> parameters = null, ConnectionType connectionType = ConnectionType.WebSocket)
 		{
 			Secure = secure;
 			Host = host;
@@ -219,8 +220,6 @@ namespace Xamarin.Socket.IO
 		{
 		}
 
-		const string socketIOEncodingPattern = @"^([0-9]):([0-9]+[+]?)?:([^:]*)?(:[^\n]*)?";
-
 		void SocketMessage (object o, MessageReceivedEventArgs e)
 		{
 			var match = Regex.Match (e.Message, socketIOEncodingPattern);
@@ -259,7 +258,7 @@ namespace Xamarin.Socket.IO
 			public string name { get; set; }
 			public IEnumerable args { get; set; }
 
-			public Message () : this ("", null) {	}
+			public Message () : this ("", null) {}
 
 			public Message (string Name, IEnumerable Args)
 			{
