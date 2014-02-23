@@ -16,7 +16,7 @@ namespace Xamarin.Socket.IO
 	{
 
 		WebSocket WebSocket;
-		Manager Manager;
+		MessageBroker MessageBroker;
 
 		#region Constants
 
@@ -47,7 +47,7 @@ namespace Xamarin.Socket.IO
 
 		#region Constructors
 
-		public SocketIO () : this ("127.0.0.1", 80)
+		public SocketIO () : this ("127.0.0.1", 3000)
 		{
 		}
 
@@ -100,9 +100,9 @@ namespace Xamarin.Socket.IO
 
 		#region Public
 
-		/*************
-		 * Properties 
-		*************/
+		/**************
+		 * Properties *
+		***************/
 
 		public enum ConnectionStatus {
 			Connected, NotConnected
@@ -116,7 +116,7 @@ namespace Xamarin.Socket.IO
 
 
 		/***********
-		 * Methods 
+		 * Methods * 
 		***********/
 
 //		Timer HeartbeatTimer;
@@ -145,7 +145,7 @@ namespace Xamarin.Socket.IO
 						var heartbeatTime = int.Parse(responseElements [1]) * 1000; // convert heartbeatTime to milliseconds
 						var timeoutTime = int.Parse (responseElements [2]) * 1000;
 
-						Manager = new Manager (heartbeatTime, timeoutTime);
+						MessageBroker = new MessageBroker (heartbeatTime, timeoutTime);
 
 						var HeartbeatTimer = new Timer (_ => {
 							SendHeartBeat ();
@@ -184,6 +184,8 @@ namespace Xamarin.Socket.IO
 			Emit (new Message (name, args));
 		}
 
+		//TODO: create enum for message types
+		
 		/// <summary>
 		/// Emit the specified messageObject.
 		/// </summary>
@@ -197,7 +199,16 @@ namespace Xamarin.Socket.IO
 			
 		}
 
-		public void SendHeartBeat ()
+		Dictionary <string, Action <JArray>> EventHandlers = new Dictionary<string, Action <JArray>> ();
+
+		public void On (string name, Action <JArray> handler)
+		{
+			if (name != "")
+				EventHandlers [name] = handler;
+			
+		}
+
+		void SendHeartBeat ()
 		{
 			if (Connected)
 				WebSocket.Send ("2:::");
@@ -238,7 +249,17 @@ namespace Xamarin.Socket.IO
 				break;
 			case 5:
 				JObject jObj = JObject.Parse (data);
-				SocketReceivedMessage (o, jObj);
+				SocketReceivedMessage (o, jObj); // general message received handler
+
+				var eventName = jObj ["name"].ToString ();
+
+				if (EventHandlers.ContainsKey (eventName)) {
+					var handler = EventHandlers [eventName];
+					if (handler != null) {
+						var args = JArray.Parse (jObj ["args"].ToString ());
+						handler (args);
+					}
+				}
 				break;
 			}
 

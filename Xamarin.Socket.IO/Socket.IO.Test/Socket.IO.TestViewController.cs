@@ -7,6 +7,7 @@ using Xamarin.Socket.IO;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
+using System.Diagnostics;
 
 namespace Socket.IO.Test
 {
@@ -46,9 +47,13 @@ namespace Socket.IO.Test
 				Console.WriteLine ("socket connected, in view controller");
 			};
 
-			Socket.SocketReceivedMessage += (o, jObj) => {
-				Console.WriteLine (jObj ["name"]);
-			};
+//			Socket.SocketReceivedMessage += (o, jObj) => {
+//				Console.WriteLine (jObj ["name"]);
+//			};
+
+			Socket.On ("news_response", (data) => {
+				Debug.WriteLine (data.First ["hello"]);
+			});
 
 			var button = new UIButton () {
 				Frame = new RectangleF (0, 0, View.Bounds.Width / 4, 44),
@@ -83,7 +88,7 @@ namespace Socket.IO.Test
 
 			heartbeatButton.SetTitle ("heartbeat", UIControlState.Normal);
 			heartbeatButton.TouchUpInside += (object sender, EventArgs evtArgs) => {
-				Socket.SendHeartBeat ();
+//				Socket.SendHeartBeat ();
 			};
 
 			button.Center = View.Center;
