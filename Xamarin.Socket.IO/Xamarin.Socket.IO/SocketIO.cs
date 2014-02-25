@@ -17,6 +17,8 @@ namespace Xamarin.Socket.IO
 
 		WebSocket WebSocket;
 		MessageBroker MessageBroker;
+		Dictionary <string, Action <JArray>> EventHandlers = new Dictionary<string, Action <JArray>> ();
+		Timer HeartbeatTimer;
 
 		#region Constants
 
@@ -81,9 +83,14 @@ namespace Xamarin.Socket.IO
 		#region Socket Callbacks
 
 		/// <summary>
-		/// Occurs when socket connected. The enpoint is passed in the argument
+		/// Occurs when socket connects. The enpoint is passed in the argument
 		/// </summary>
 		public event Action<object, string> SocketConnected = delegate {};
+
+		/// <summary>
+		/// Occurs when socket disconnects. The enpoint is passed in the argument
+		/// </summary>
+		public event Action<object, string> SocketDisconnected = delegate {};
 
 		/// <summary>
 		/// Occurs when socket received a message (socket.emit ('foo', args) on the server). JObject is in NewtonSoft.Json.Linq
@@ -94,6 +101,8 @@ namespace Xamarin.Socket.IO
 		/// Occurs when socket received data
 		/// </summary>
 		public event Action<object, byte[]> SocketReceivedData = delegate {};
+
+
 
 		#endregion
 
@@ -119,7 +128,7 @@ namespace Xamarin.Socket.IO
 		 * Methods * 
 		***********/
 
-//		Timer HeartbeatTimer;
+
 
 		/// <summary>
 		/// Connects to http://host:port/ or https://host:port asynchronously depending on the security parameter passed in the constructor
@@ -147,7 +156,7 @@ namespace Xamarin.Socket.IO
 
 						MessageBroker = new MessageBroker (heartbeatTime, timeoutTime);
 
-						var HeartbeatTimer = new Timer (_ => {
+						HeartbeatTimer = new Timer (_ => {
 							SendHeartBeat ();
 						}, null, heartbeatTime / 2, heartbeatTime / 2);
 
@@ -171,6 +180,34 @@ namespace Xamarin.Socket.IO
 
 			}
 			return ConnectionStatus.Connected; 
+		}
+
+		public void Disconnect ()
+		{
+			if (Connected) {
+				SendDisconnectMessage (null, "");
+			} else if (Connecting) {
+				SocketConnected += SendDisconnectMessage;
+			}
+		}
+
+		void SendDisconnectMessage (object o, string s)
+		{
+			WebSocket.Send ("0::");
+			Connected = false;
+			SocketConnected -= SendDisconnectMessage;
+		}
+
+		/// <summary>
+		/// Equivalent to socket.on("name", function (data) { }) in JavaScript. 
+		/// Calls <param name="handler">handler</param> when the server emits an event named <param name="name">Name.</param>
+		/// </summary>
+		/// <param name="name">Name.</param>
+		/// <param name="handler">Handler.</param>
+		public void On (string name, Action <JArray> handler)
+		{
+			if (name != "")
+				EventHandlers [name] = handler;
 		}
 
 		/// <summary>
@@ -198,40 +235,31 @@ namespace Xamarin.Socket.IO
 				WebSocket.Send (string.Format ("5:::{0}", message));
 			
 		}
-
-		Dictionary <string, Action <JArray>> EventHandlers = new Dictionary<string, Action <JArray>> ();
-
-		public void On (string name, Action <JArray> handler)
-		{
-			if (name != "")
-				EventHandlers [name] = handler;
 			
-		}
-
-		void SendHeartBeat ()
-		{
-			if (Connected)
-				WebSocket.Send ("2:::");
-		}
-
 
 		#endregion
 
 		#region Helper functions
 
+		void SendHeartBeat ()
+		{
+			if (Connected)
+				WebSocket.Send ("2::");
+		}
+
 		void AddCallbacksToSocket (ref WebSocket socket)
 		{
-			socket.Opened += SocketOpen;
-			socket.MessageReceived += SocketMessage;
-			socket.DataReceived += SocketData;
+			socket.Opened += SocketOpenedFunction;
+			socket.MessageReceived += SocketMessageReceivedFunction;
+			socket.DataReceived += SocketDataReceivedFunction;
 		}
 
 		// internal
-		void SocketOpen (object o, EventArgs e)
+		void SocketOpenedFunction (object o, EventArgs e)
 		{
 		}
 
-		void SocketMessage (object o, MessageReceivedEventArgs e)
+		void SocketMessageReceivedFunction (object o, MessageReceivedEventArgs e)
 		{
 			var match = Regex.Match (e.Message, socketIOEncodingPattern);
 
@@ -244,6 +272,9 @@ namespace Xamarin.Socket.IO
 				data = data.Substring (1); //ignore leading ':'
 
 			switch (messageType) {
+			case 0:
+				SocketDisconnected (o, endPoint);
+				break;
 			case 1:
 				SocketConnected (o, endPoint);
 				break;
@@ -261,11 +292,16 @@ namespace Xamarin.Socket.IO
 					}
 				}
 				break;
+
+			default:
+				if (jObj != null)
+					Debug.WriteLine (jObj.ToString ());
+				break;
 			}
 
 		}
 
-		void SocketData (object o, DataReceivedEventArgs e)
+		void SocketDataReceivedFunction (object o, DataReceivedEventArgs e)
 		{
 			SocketReceivedData (o, e.Data);
 		}

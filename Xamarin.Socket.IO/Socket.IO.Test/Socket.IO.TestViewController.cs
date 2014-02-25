@@ -72,11 +72,6 @@ namespace Socket.IO.Test
 
 			sendButton.SetTitle ("message", UIControlState.Normal);
 			sendButton.TouchUpInside += (object sender, EventArgs evtArgs) => {
-//				var list = new List <Foo> () {
-//					new Foo (){
-//						Bar = "baz"
-//					}
-//				};
 				var list = new object [] { 1, "asdlkfjdskf", 3.4f, new Foo () { Bar = "baz"} };
 				Socket.Emit ("news", list);
 			};
@@ -88,7 +83,7 @@ namespace Socket.IO.Test
 
 			heartbeatButton.SetTitle ("heartbeat", UIControlState.Normal);
 			heartbeatButton.TouchUpInside += (object sender, EventArgs evtArgs) => {
-//				Socket.SendHeartBeat ();
+				Socket.Disconnect ();
 			};
 
 			button.Center = View.Center;
