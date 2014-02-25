@@ -12,18 +12,34 @@ using System.Text.RegularExpressions;
 
 namespace Xamarin.Socket.IO
 {
-	public class SocketIO
+	public class SocketIO : IDisposable
 	{
 
 		WebSocket WebSocket;
 		MessageBroker MessageBroker;
-		Dictionary <string, Action <JArray>> EventHandlers = new Dictionary<string, Action <JArray>> ();
+		Dictionary <string, List <Action <JArray>>> EventHandlers = new Dictionary<string, List <Action <JArray>>> ();
+
+		#pragma warning disable 414
 		Timer HeartbeatTimer;
+		#pragma warning restore
+
 
 		#region Constants
 
 		const string socketIOConnectionString = "socket.io/1";
 		const string socketIOEncodingPattern = @"^([0-9]):([0-9]+[+]?)?:([^:]*)?(:[^\n]*)?";
+
+		enum MessageType {
+			Disconnect = 0,
+			Connect = 1,
+			Heartbeat = 2,
+			Message = 3,
+			Json = 4,
+			Event = 5,
+			Ack = 6,
+			Error = 7,
+			Noop = 8
+		}
 
 		#endregion
 
@@ -121,14 +137,11 @@ namespace Xamarin.Socket.IO
 			WebSocket, LongPolling
 		}
 
-		public string ConnectionErrorString;
 
 
 		/***********
 		 * Methods * 
 		***********/
-
-
 
 		/// <summary>
 		/// Connects to http://host:port/ or https://host:port asynchronously depending on the security parameter passed in the constructor
@@ -139,14 +152,13 @@ namespace Xamarin.Socket.IO
 			if (!Connected && !Connecting) {
 				Connecting = true;
 
-				var scheme = Secure ? "https" : "http";
-				var handshakeUri = string.Format ("{0}://{1}:{2}/{3}", scheme, Host, Port, socketIOConnectionString);
-
 				var responseBody = "";
 
 				using (var client = new HttpClient ()) {
 
 					try {
+						var scheme = Secure ? "https" : "http";
+						var handshakeUri = string.Format ("{0}://{1}:{2}/{3}", scheme, Host, Port, socketIOConnectionString);
 						responseBody = await client.GetStringAsync (handshakeUri);
 
 						var responseElements = responseBody.Split (':');
@@ -172,7 +184,7 @@ namespace Xamarin.Socket.IO
 						return ConnectionStatus.Connected;
 
 					} catch (Exception e) {
-						ConnectionErrorString = e.Data.ToString ();
+						Debug.WriteLine (e.Message);
 						return ConnectionStatus.NotConnected;
 					}
 
@@ -182,20 +194,18 @@ namespace Xamarin.Socket.IO
 			return ConnectionStatus.Connected; 
 		}
 
+		/// <summary>
+		/// Disconnect this instance.
+		/// </summary>
 		public void Disconnect ()
 		{
+			//TODO: clean up Timer, Websocket, and Message Broker
+
 			if (Connected) {
 				SendDisconnectMessage (null, "");
 			} else if (Connecting) {
 				SocketConnected += SendDisconnectMessage;
 			}
-		}
-
-		void SendDisconnectMessage (object o, string s)
-		{
-			WebSocket.Send ("0::");
-			Connected = false;
-			SocketConnected -= SendDisconnectMessage;
 		}
 
 		/// <summary>
@@ -206,8 +216,12 @@ namespace Xamarin.Socket.IO
 		/// <param name="handler">Handler.</param>
 		public void On (string name, Action <JArray> handler)
 		{
-			if (name != "")
-				EventHandlers [name] = handler;
+			if (!string.IsNullOrEmpty (name)) {
+				if (EventHandlers.ContainsKey (name))
+					EventHandlers [name].Add (handler);
+				else 
+					EventHandlers [name] = new List<Action<JArray>> () { handler };
+			}
 		}
 
 		/// <summary>
@@ -218,22 +232,10 @@ namespace Xamarin.Socket.IO
 		/// <param name="args">Arguments.</param>
 		public void Emit (string name, IEnumerable args)
 		{
-			Emit (new Message (name, args));
-		}
-
-		//TODO: create enum for message types
-		
-		/// <summary>
-		/// Emit the specified messageObject.
-		/// </summary>
-		/// <param name="messageObject">Message object.</param>
-		void Emit (Message messageObject)
-		{
-			string message = JsonConvert.SerializeObject (messageObject);
-			Debug.WriteLine( string.Format ("5:::{0}", message));
-			if (Connected)
-				WebSocket.Send (string.Format ("5:::{0}", message));
-			
+			if (!string.IsNullOrEmpty (name))
+				Emit (new Message (name, args));
+			else
+				Debug.WriteLine ("Tried to Emit empty name");
 		}
 			
 
@@ -244,7 +246,7 @@ namespace Xamarin.Socket.IO
 		void SendHeartBeat ()
 		{
 			if (Connected)
-				WebSocket.Send ("2::");
+				WebSocket.Send (string.Format ("{0}::", (int)MessageType.Heartbeat));
 		}
 
 		void AddCallbacksToSocket (ref WebSocket socket)
@@ -254,6 +256,12 @@ namespace Xamarin.Socket.IO
 			socket.DataReceived += SocketDataReceivedFunction;
 		}
 
+		void RemoveCallbacksFromSocket (ref WebSocket socket)
+		{
+			socket.Opened -= SocketOpenedFunction;
+			socket.MessageReceived -= SocketMessageReceivedFunction;
+			socket.DataReceived -= SocketDataReceivedFunction;
+		}
 		// internal
 		void SocketOpenedFunction (object o, EventArgs e)
 		{
@@ -268,7 +276,7 @@ namespace Xamarin.Socket.IO
 			var endPoint = match.Groups [3].Value;
 			var	data = (match.Groups [4].Value);
 
-			if (data != "")
+			if (!string.IsNullOrEmpty (data))
 				data = data.Substring (1); //ignore leading ':'
 
 			switch (messageType) {
@@ -284,18 +292,20 @@ namespace Xamarin.Socket.IO
 
 				var eventName = jObj ["name"].ToString ();
 
-				if (EventHandlers.ContainsKey (eventName)) {
-					var handler = EventHandlers [eventName];
-					if (handler != null) {
-						var args = JArray.Parse (jObj ["args"].ToString ());
-						handler (args);
+				if (!string.IsNullOrEmpty (eventName) && EventHandlers.ContainsKey (eventName)) {
+					var handlers = EventHandlers [eventName];
+					foreach (var handler in handlers) {
+						if (handler != null) {
+							var args = JArray.Parse (jObj ["args"].ToString ());
+							handler (args);
+						}
 					}
 				}
 				break;
 
 			default:
 				if (jObj != null)
-					Debug.WriteLine (jObj.ToString ());
+					Debug.WriteLine ("jObj = {0}", jObj.ToString ());
 				break;
 			}
 
@@ -306,6 +316,25 @@ namespace Xamarin.Socket.IO
 			SocketReceivedData (o, e.Data);
 		}
 	
+		void SendDisconnectMessage (object o, string s)
+		{
+			WebSocket.Send (string.Format ("{0}::", (int)MessageType.Disconnect));
+			WebSocket.Close ();
+			Connected = false;
+			SocketConnected -= SendDisconnectMessage;
+		}
+
+		//TODO: create enum for message types
+
+		void Emit (Message messageObject)
+		{
+			string message = JsonConvert.SerializeObject (messageObject);
+			Debug.WriteLine( string.Format ("{0}:::{1}", (int)MessageType.Event, message));
+			if (Connected)
+				WebSocket.Send (string.Format ("{0}:::{1}", (int)MessageType.Event, message));
+
+		}
+
 		#endregion
 
 		#region Helper classes
@@ -323,6 +352,17 @@ namespace Xamarin.Socket.IO
 				args = Args;
 			}
 
+		}
+
+		#endregion
+
+		#region IDisposable implementation
+
+		public void Dispose ()
+		{
+			RemoveCallbacksFromSocket (ref WebSocket);
+			// Clean up SocketReceivedMessage etc
+			Disconnect ();
 		}
 
 		#endregion

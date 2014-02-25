@@ -62,7 +62,7 @@ namespace Socket.IO.Test
 
 			button.SetTitle ("connect", UIControlState.Normal);
 			button.TouchUpInside += async (object sender, EventArgs evtArgs) => {
-				var status = await Socket.ConnectAsync ();
+				await Socket.ConnectAsync ();
 			};
 
 			var sendButton = new UIButton () {
