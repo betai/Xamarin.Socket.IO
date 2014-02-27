@@ -2,12 +2,12 @@ using System;
 using System.Drawing;
 using MonoTouch.Foundation;
 using MonoTouch.UIKit;
-//using Socket.IO.iOS;
 using Xamarin.Socket.IO;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace Socket.IO.Test
 {
@@ -41,6 +41,11 @@ namespace Socket.IO.Test
 		public override void ViewWillAppear (bool animated)
 		{
 			base.ViewWillAppear (animated);
+
+			var match = Regex.Match ("12832732+ldkfjlsdkjfaldfd", SocketIO.socketAckEncodingPattern);
+
+			var messageID = int.Parse (match.Groups [1].Value);
+			var data1 = match.Groups [2].Value;
 
 			Socket = new SocketIO (host : "127.0.0.1", port : 3000);
 			Socket.SocketConnected += (arg1, arg2) => {
@@ -86,7 +91,7 @@ namespace Socket.IO.Test
 				BackgroundColor = UIColor.Gray
 			};
 
-			heartbeatButton.SetTitle ("heartbeat", UIControlState.Normal);
+			heartbeatButton.SetTitle ("disconnect", UIControlState.Normal);
 			heartbeatButton.TouchUpInside += (object sender, EventArgs evtArgs) => {
 				Socket.Disconnect ();
 			};

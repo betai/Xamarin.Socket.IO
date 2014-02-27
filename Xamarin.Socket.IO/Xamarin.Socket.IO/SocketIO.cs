@@ -34,6 +34,7 @@ namespace Xamarin.Socket.IO
 
 		const string socketIOConnectionString = "socket.io/1";
 		const string socketIOEncodingPattern = @"^([0-9]):([0-9]+[+]?)?:([^:]*)?(:[^\n]*)?";
+		const string socketAckEncodingPattern = @"^([0-9]+)(\+[^\n]*)?";
 
 		enum MessageType {
 			Disconnect = 0,
@@ -133,6 +134,11 @@ namespace Xamarin.Socket.IO
 		/// Occurs when socket receives error.
 		/// </summary>
 		public event Action<object, string> SocketReceivedError = delegate {};
+
+		/// <summary>
+		/// Occurs when socket received acknowledgement.
+		/// </summary>
+		public event Action<object, int, JArray> SocketReceivedAcknowledgement = delegate {};
 
 		#endregion
 
@@ -341,7 +347,7 @@ namespace Xamarin.Socket.IO
 			var messageType = int.Parse (match.Groups [1].Value);
 			var messageId = match.Groups [2].Value;
 			var endPoint = match.Groups [3].Value;
-			var	data = (match.Groups [4].Value);
+			var	data = match.Groups [4].Value;
 
 			if (!string.IsNullOrEmpty (data))
 				data = data.Substring (1); //ignore leading ':'
@@ -400,6 +406,14 @@ namespace Xamarin.Socket.IO
 
 			case (int)MessageType.Ack:
 				Debug.WriteLine ("Ack");
+				if (!string.IsNullOrEmpty (data)) {
+					var ackMatch = Regex.Match (data, socketAckEncodingPattern);
+					var ackMessageId = int.Parse (match.Groups [1].Value);
+					var ackData = match.Groups [2].Value;
+					if (!string.IsNullOrEmpty (ackData))
+						ackData = ackData.Substring (1); //ignore leading '+'
+					SocketReceivedAcknowledgement (o, ackMessageId, ackData);
+				}
 				break;
 
 			case (int)MessageType.Error:
