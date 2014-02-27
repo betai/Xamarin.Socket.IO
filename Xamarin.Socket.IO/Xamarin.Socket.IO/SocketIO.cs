@@ -148,7 +148,6 @@ namespace Xamarin.Socket.IO
 		}
 
 
-
 		/***********
 		 * Methods * 
 		***********/
@@ -245,13 +244,36 @@ namespace Xamarin.Socket.IO
 		}
 
 		/// <summary>
-		/// Send the string message. Consider using Emit
+		/// Send the string message. Consider using Emit instead
 		/// </summary>
 		/// <param name="message">Message.</param>
 		public void Send (string message)
 		{
 			if (Connected)
 				WebSocket.Send (string.Format ("{0}:::{1}", (int)MessageType.Message, message));
+		}
+
+
+		/// <summary>
+		/// Sends the obj as JSon. Consider using Emit instead
+		/// </summary>
+		/// <param name="obj">Object.</param>
+		public void SendJson (object obj)
+		{
+			if (obj != null) {
+				string json = JsonConvert.SerializeObject (obj);
+				SendJson (json);
+			}
+		}
+
+		/// <summary>
+		/// Sends the JSon string json. Consider using Emit instead
+		/// </summary>
+		/// <param name="json">Json.</param>
+		public void SendJson (string json)
+		{
+			if (Connected && !string.IsNullOrEmpty (json))
+				WebSocket.Send (string.Format ("{0}:::{1}", (int)MessageType.Json, json));
 		}
 
 		/// <summary>

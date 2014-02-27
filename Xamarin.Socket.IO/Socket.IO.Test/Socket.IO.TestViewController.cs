@@ -75,6 +75,9 @@ namespace Socket.IO.Test
 				var list = new object [] { 1, "asdlkfjdskf", 3.4f, new Foo () { Bar = "baz"} };
 				Socket.Emit ("news", list);
 				Socket.Send ("regular old message");
+				Socket.SendJson (new Foo () {
+					Bar = "baz"
+				});
 				Socket.SendAcknowledgement (2, new string [] { "A", "B" });
 			};
 
