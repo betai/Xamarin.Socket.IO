@@ -14,15 +14,21 @@ namespace Xamarin.Socket.IO
 {
 	public class SocketIO : IDisposable
 	{
+		#region ivars
 
 		WebSocket WebSocket;
-		MessageBroker MessageBroker;
 		Dictionary <string, List <Action <JArray>>> EventHandlers = new Dictionary<string, List <Action <JArray>>> ();
 
 		#pragma warning disable 414
 		Timer HeartbeatTimer;
 		#pragma warning restore
 
+		// socket.io handshake data
+		string SessionID;
+		int HeartbeatTime;
+		int TimeoutTime;
+
+		#endregion
 
 		#region Constants
 
@@ -65,6 +71,10 @@ namespace Xamarin.Socket.IO
 
 		#region Constructors
 
+		/// <summary>
+		/// Initializes a new instance of the <see cref="Xamarin.Socket.IO.SocketIO"/> class
+		/// with localhost:3000
+		/// </summary>
 		public SocketIO () : this ("127.0.0.1", 3000)
 		{
 		}
@@ -115,11 +125,9 @@ namespace Xamarin.Socket.IO
 		public event Action<object, JObject> SocketReceivedMessage = delegate {};
 
 		/// <summary>
-		/// Occurs when socket received json. . JObject is in NewtonSoft.Json.Linq
+		/// Occurs when socket received json. JObject is in NewtonSoft.Json.Linq
 		/// </summary>
 		public event Action<object, JObject> SocketReceivedJson = delegate {};
-
-
 
 
 		#endregion
@@ -164,15 +172,13 @@ namespace Xamarin.Socket.IO
 						responseBody = await client.GetStringAsync (handshakeUri);
 
 						var responseElements = responseBody.Split (':');
-						var sessionID = responseElements[0];
-						var heartbeatTime = int.Parse(responseElements [1]) * 1000; // convert heartbeatTime to milliseconds
-						var timeoutTime = int.Parse (responseElements [2]) * 1000;
-
-						MessageBroker = new MessageBroker (heartbeatTime, timeoutTime);
+						SessionID = responseElements[0];
+						HeartbeatTime = int.Parse(responseElements [1]) * 1000; // convert heartbeatTime to milliseconds
+						TimeoutTime = int.Parse (responseElements [2]) * 1000;
 
 						HeartbeatTimer = new Timer (_ => {
 							SendHeartbeat ();
-						}, null, heartbeatTime / 2, heartbeatTime / 2);
+						}, null, HeartbeatTime / 2, HeartbeatTime / 2);
 
 						var websocketScheme = Secure ? "wss" : "ws";
 						var websocketUri = string.Format ("{0}://{1}:{2}/{3}/websocket/{4}", websocketScheme, Host, Port, socketIOConnectionString, sessionID);
@@ -201,8 +207,6 @@ namespace Xamarin.Socket.IO
 		/// </summary>
 		public void Disconnect ()
 		{
-			//TODO: clean up Timer, Websocket, and Message Broker
-
 			if (Connected) {
 				SendDisconnectMessage (null, "");
 			} else if (Connecting) {
@@ -326,6 +330,7 @@ namespace Xamarin.Socket.IO
 				break;
 
 			case (int)MessageType.Ack:
+				Debug.WriteLine ("Ack");
 				break;
 
 			case (int)MessageType.Error:
@@ -354,8 +359,6 @@ namespace Xamarin.Socket.IO
 			SocketConnected -= SendDisconnectMessage;
 		}
 
-		//TODO: create enum for message types
-
 		void Emit (Message messageObject)
 		{
 			Debug.WriteLine ("Emit");
@@ -367,24 +370,6 @@ namespace Xamarin.Socket.IO
 
 		#endregion
 
-		#region Helper classes
-
-		class Message
-		{
-			public string name { get; set; }
-			public IEnumerable args { get; set; }
-
-			public Message () : this ("", null) {}
-
-			public Message (string Name, IEnumerable Args)
-			{
-				name = Name;
-				args = Args;
-			}
-
-		}
-
-		#endregion
 
 		#region IDisposable implementation
 
