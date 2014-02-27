@@ -92,6 +92,8 @@ namespace Xamarin.Socket.IO
 		/// <param name="connectionType">Connection type.</param>
 		public SocketIO (string host, int port = 80, bool secure = false, List<string> parameters = null, ConnectionType connectionType = ConnectionType.WebSocket)
 		{
+			//TODO: Regex the host to decrease the sensitivity
+
 			Secure = secure;
 			Host = host;
 			Port = port;
@@ -169,7 +171,7 @@ namespace Xamarin.Socket.IO
 		/// 
 		public async Task<ConnectionStatus> ConnectAsync ()
 		{
-			ConnectAsync ("");
+			return await ConnectAsync ("");
 		}
 
 		/// <summary>
@@ -230,12 +232,29 @@ namespace Xamarin.Socket.IO
 		}
 
 		/// <summary>
-		/// Disconnect this instance.
+		/// Only used for multiple sockets. Connects to endpoint.
+		/// See https://github.com/LearnBoost/socket.io-spec#1-connect for more info
 		/// </summary>
-		public void Disconnect ()
+		/// <param name="path">Path.</param>
+		/// <param name="query">Query.</param>
+		public void ConnectToEndpoint (string path, string query)
+		{
+			if (string.IsNullOrEmpty (query)) {
+				if (query [0] != '?')
+					query = "?" + query;
+			}
+
+			if (Connected)
+				WebSocket.Send (string.Format ("{0}::{1}{2}", (int)MessageType.Connect, path, query));
+		}
+
+		/// <summary>
+		/// If no endpoint is specified, this disconnects the entire socket by default
+		/// </summary>
+		public void Disconnect (string endPoint = "")
 		{
 			if (Connected) {
-				SendDisconnectMessage (null, "");
+				SendDisconnectMessage (null, endPoint);
 			} else if (Connecting) {
 				SocketConnected += SendDisconnectMessage;
 			}
@@ -258,15 +277,25 @@ namespace Xamarin.Socket.IO
 		}
 
 		/// <summary>
-		/// Emit the event named <param name="name">Name.</param> with args <param name="args">Arguments.</param>.
-		/// <param name="args">Arguments.</param> *must* be JsonSerializeable
+		/// Emit the event named "name" with arguments "args"
+		/// "args" can be customize via JSon.Net attributes
 		/// </summary>
 		/// <param name="name">Name.</param>
 		/// <param name="args">Arguments.</param>
 		public void Emit (string name, IEnumerable args)
 		{
+			Emit (name, args, "", "");
+		}
+
+		public void Emit (string name, IEnumerable args, string endpoint)
+		{
+			Emit (name, args, endpoint, "");
+		}
+
+		public void Emit (string name, IEnumerable args, string endpoint, string messageId)
+		{
 			if (!string.IsNullOrEmpty (name))
-				Emit (new Message (name, args));
+				EmitMessage (new Message (name, args), endpoint, messageId);
 			else
 				Debug.WriteLine ("Tried to Emit empty name");
 		}
@@ -364,7 +393,7 @@ namespace Xamarin.Socket.IO
 
 			var messageType = (MessageType)int.Parse (match.Groups [1].Value);
 			var messageId = match.Groups [2].Value;
-			var endPoint = match.Groups [3].Value;
+			var endpoint = match.Groups [3].Value;
 			var	data = match.Groups [4].Value;
 
 			if (!string.IsNullOrEmpty (data))
@@ -376,12 +405,12 @@ namespace Xamarin.Socket.IO
 
 			case MessageType.Disconnect:
 				Debug.WriteLine ("Disconnected");
-				SocketDisconnected (o, endPoint);
+				SocketDisconnected (o, endpoint);
 				break;
 
 			case MessageType.Connect:
 				Debug.WriteLine ("Connected");
-				SocketConnected (o, endPoint);
+				SocketConnected (o, endpoint);
 				break;
 
 			case MessageType.Heartbeat:
@@ -455,23 +484,24 @@ namespace Xamarin.Socket.IO
 
 		}
 				
-		void SendDisconnectMessage (object o, string s)
+		void SendDisconnectMessage (object o, string endPoint = "")
 		{
 			Debug.WriteLine ("Send Disconnect Message");
-			WebSocket.Send (string.Format ("{0}::", (int)MessageType.Disconnect));
-			WebSocket.Close ();
-			HeartbeatTimer.Change (0, 0);
-			Connected = false;
-			SocketConnected -= SendDisconnectMessage;
+			WebSocket.Send (string.Format ("{0}::{1}", (int)MessageType.Disconnect, endPoint));
+			if (string.IsNullOrEmpty (endPoint)) {
+				WebSocket.Close ();
+				HeartbeatTimer.Change (0, 0);
+				Connected = false;
+			}
 		}
 
-		void Emit (Message messageObject)
+		void EmitMessage (Message messageObject, string endpoint, string messageId)
 		{
 			Debug.WriteLine ("Emit");
 			string message = JsonConvert.SerializeObject (messageObject);
-			Debug.WriteLine (string.Format ("{0}:::{1}", (int)MessageType.Event, message));
+			Debug.WriteLine (string.Format ("{0}:{1}:{2}:{3}", (int)MessageType.Event, messageId, endpoint, message));
 			if (Connected)
-				WebSocket.Send (string.Format ("{0}:::{1}", (int)MessageType.Event, message));
+				WebSocket.Send (string.Format ("{0}:{1}:{2}:{3}", (int)MessageType.Event, messageId, endpoint, message));
 		}
 
 		#endregion
