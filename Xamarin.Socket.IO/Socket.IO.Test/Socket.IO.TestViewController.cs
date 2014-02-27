@@ -42,11 +42,6 @@ namespace Socket.IO.Test
 		{
 			base.ViewWillAppear (animated);
 
-			var match = Regex.Match ("12832732+ldkfjlsdkjfaldfd", SocketIO.socketAckEncodingPattern);
-
-			var messageID = int.Parse (match.Groups [1].Value);
-			var data1 = match.Groups [2].Value;
-
 			Socket = new SocketIO (host : "127.0.0.1", port : 3000);
 			Socket.SocketConnected += (arg1, arg2) => {
 				Console.WriteLine ("socket connected, in view controller");

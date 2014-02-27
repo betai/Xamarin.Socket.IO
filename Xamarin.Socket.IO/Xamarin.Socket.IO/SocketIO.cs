@@ -373,7 +373,7 @@ namespace Xamarin.Socket.IO
 
 			case (int)MessageType.Message:
 				Debug.WriteLine ("Message = {0}", data);
-				SocketReceivedMessage (o, data); // general message received handler
+				SocketReceivedMessage (o, data);
 				break;
 
 			case (int)MessageType.Json:
@@ -390,7 +390,6 @@ namespace Xamarin.Socket.IO
 					jObjData = JObject.Parse (data);
 					eventName = jObjData ["name"].ToString ();
 				}
-
 
 				if (!string.IsNullOrEmpty (eventName) && EventHandlers.ContainsKey (eventName)) {
 					var handlers = EventHandlers [eventName];
@@ -412,7 +411,7 @@ namespace Xamarin.Socket.IO
 					var ackData = match.Groups [2].Value;
 					if (!string.IsNullOrEmpty (ackData))
 						ackData = ackData.Substring (1); //ignore leading '+'
-					SocketReceivedAcknowledgement (o, ackMessageId, ackData);
+					SocketReceivedAcknowledgement (o, ackMessageId, JArray.Parse (ackData));
 				}
 				break;
 
