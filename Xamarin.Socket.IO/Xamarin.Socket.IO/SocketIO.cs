@@ -166,7 +166,19 @@ namespace Xamarin.Socket.IO
 		/// Connects to http://host:port/ or https://host:port asynchronously depending on the security parameter passed in the constructor
 		/// </summary>
 		/// <returns>ConnectionStatus</returns>
+		/// 
 		public async Task<ConnectionStatus> ConnectAsync ()
+		{
+			ConnectAsync ("");
+		}
+
+		/// <summary>
+		/// Connects to http://host:port/ or https://host:port asynchronously depending on the security parameter passed in the constructor
+		/// See https://github.com/LearnBoost/socket.io-spec#query for more info on query
+		/// </summary>
+		/// <returns>The async.</returns>
+		/// <param name="query">Query.</param>
+		public async Task<ConnectionStatus> ConnectAsync (string query)
 		{
 			if (!Connected && !Connecting) {
 				Connecting = true;
@@ -177,7 +189,12 @@ namespace Xamarin.Socket.IO
 
 					try {
 						var scheme = Secure ? "https" : "http";
-						var handshakeUri = string.Format ("{0}://{1}:{2}/{3}", scheme, Host, Port, socketIOConnectionString);
+						if (!string.IsNullOrEmpty (query)) {
+							if (query[0] != '?')
+								query = "?" + query;
+						}
+						
+						var handshakeUri = string.Format ("{0}://{1}:{2}/{3}/{4}", scheme, Host, Port, socketIOConnectionString, query);
 						responseBody = await client.GetStringAsync (handshakeUri);
 
 						var responseElements = responseBody.Split (':');
