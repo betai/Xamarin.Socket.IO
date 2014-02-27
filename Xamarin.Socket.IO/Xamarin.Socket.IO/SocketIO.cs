@@ -71,6 +71,7 @@ namespace Xamarin.Socket.IO
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="Xamarin.Socket.IO.SocketIO"/> class.
+		/// The host must be of the form www.example.com - not http://www.example.com/
 		/// Defaults to http over https
 		/// </summary>
 		/// <param name="host">Host.</param>
@@ -109,14 +110,15 @@ namespace Xamarin.Socket.IO
 		public event Action<object, string> SocketDisconnected = delegate {};
 
 		/// <summary>
-		/// Occurs when socket received a message (socket.emit ('foo', args) on the server). JObject is in NewtonSoft.Json.Linq
+		/// Occurs when socket received a message. JObject is in NewtonSoft.Json.Linq
 		/// </summary>
 		public event Action<object, JObject> SocketReceivedMessage = delegate {};
 
 		/// <summary>
-		/// Occurs when socket received data
+		/// Occurs when socket received json. . JObject is in NewtonSoft.Json.Linq
 		/// </summary>
-		public event Action<object, byte[]> SocketReceivedData = delegate {};
+		public event Action<object, JObject> SocketReceivedJson = delegate {};
+
 
 
 
@@ -169,7 +171,7 @@ namespace Xamarin.Socket.IO
 						MessageBroker = new MessageBroker (heartbeatTime, timeoutTime);
 
 						HeartbeatTimer = new Timer (_ => {
-							SendHeartBeat ();
+							SendHeartbeat ();
 						}, null, heartbeatTime / 2, heartbeatTime / 2);
 
 						var websocketScheme = Secure ? "wss" : "ws";
@@ -243,7 +245,7 @@ namespace Xamarin.Socket.IO
 
 		#region Helper functions
 
-		void SendHeartBeat ()
+		void SendHeartbeat ()
 		{
 			if (Connected)
 				WebSocket.Send (string.Format ("{0}::", (int)MessageType.Heartbeat));
@@ -253,22 +255,18 @@ namespace Xamarin.Socket.IO
 		{
 			socket.Opened += SocketOpenedFunction;
 			socket.MessageReceived += SocketMessageReceivedFunction;
-			socket.DataReceived += SocketDataReceivedFunction;
 		}
-
-		void RemoveCallbacksFromSocket (ref WebSocket socket)
-		{
-			socket.Opened -= SocketOpenedFunction;
-			socket.MessageReceived -= SocketMessageReceivedFunction;
-			socket.DataReceived -= SocketDataReceivedFunction;
-		}
+			
 		// internal
 		void SocketOpenedFunction (object o, EventArgs e)
 		{
+			Debug.WriteLine ("Socket opened");
 		}
 
 		void SocketMessageReceivedFunction (object o, MessageReceivedEventArgs e)
 		{
+			Debug.WriteLine ("Received Message: {0}", e.Message);
+
 			var match = Regex.Match (e.Message, socketIOEncodingPattern);
 
 			var messageType = int.Parse (match.Groups [1].Value);
@@ -279,45 +277,77 @@ namespace Xamarin.Socket.IO
 			if (!string.IsNullOrEmpty (data))
 				data = data.Substring (1); //ignore leading ':'
 
+			JObject jObjData = null;
+			if (!string.IsNullOrEmpty (data))
+				jObjData = JObject.Parse (data);
+
 			switch (messageType) {
-			case 0:
+
+			case (int)MessageType.Disconnect:
+				Debug.WriteLine ("Disconnected");
 				SocketDisconnected (o, endPoint);
 				break;
-			case 1:
+
+			case (int)MessageType.Connect:
+				Debug.WriteLine ("Connected");
 				SocketConnected (o, endPoint);
 				break;
-			case 5:
-				JObject jObj = JObject.Parse (data);
-				SocketReceivedMessage (o, jObj); // general message received handler
 
-				var eventName = jObj ["name"].ToString ();
+			case (int)MessageType.Heartbeat:
+				Debug.WriteLine ("Heartbeat");
+				SendHeartbeat ();
+				break;
+
+			case (int)MessageType.Message:
+				Debug.WriteLine ("Message");
+				SocketReceivedMessage (o, jObjData); // general message received handler
+				break;
+
+			case (int)MessageType.Json:
+				Debug.WriteLine ("Json");
+				SocketReceivedJson (o, jObjData);
+				break;
+
+			case (int)MessageType.Event:
+				Debug.WriteLine ("Event");
+				string eventName = "";
+				if (jObjData != null)
+					eventName = jObjData ["name"].ToString ();
 
 				if (!string.IsNullOrEmpty (eventName) && EventHandlers.ContainsKey (eventName)) {
 					var handlers = EventHandlers [eventName];
 					foreach (var handler in handlers) {
 						if (handler != null) {
-							var args = JArray.Parse (jObj ["args"].ToString ());
+							var args = JArray.Parse (jObjData ["args"].ToString ());
 							handler (args);
 						}
 					}
 				}
 				break;
 
+			case (int)MessageType.Ack:
+				break;
+
+			case (int)MessageType.Error:
+				Debug.WriteLine ("Error");
+				break;
+
+			case (int)MessageType.Noop:
+				Debug.WriteLine ("Noop");
+				break;
+
 			default:
-				if (jObj != null)
-					Debug.WriteLine ("jObj = {0}", jObj.ToString ());
+				Debug.WriteLine ("Something went wrong here...");
+				if (jObjData != null)
+					Debug.WriteLine ("jObj = {0}", jObjData.ToString ());
 				break;
 			}
 
 		}
-
-		void SocketDataReceivedFunction (object o, DataReceivedEventArgs e)
-		{
-			SocketReceivedData (o, e.Data);
-		}
-	
+				
 		void SendDisconnectMessage (object o, string s)
 		{
+			Debug.WriteLine ("Send Disconnect Message");
 			WebSocket.Send (string.Format ("{0}::", (int)MessageType.Disconnect));
 			WebSocket.Close ();
 			Connected = false;
@@ -328,11 +358,11 @@ namespace Xamarin.Socket.IO
 
 		void Emit (Message messageObject)
 		{
+			Debug.WriteLine ("Emit");
 			string message = JsonConvert.SerializeObject (messageObject);
 			Debug.WriteLine( string.Format ("{0}:::{1}", (int)MessageType.Event, message));
 			if (Connected)
 				WebSocket.Send (string.Format ("{0}:::{1}", (int)MessageType.Event, message));
-
 		}
 
 		#endregion
@@ -360,8 +390,6 @@ namespace Xamarin.Socket.IO
 
 		public void Dispose ()
 		{
-			RemoveCallbacksFromSocket (ref WebSocket);
-			// Clean up SocketReceivedMessage etc
 			Disconnect ();
 		}
 
