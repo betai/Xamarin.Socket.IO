@@ -47,9 +47,9 @@ namespace Socket.IO.Test
 				Console.WriteLine ("socket connected, in view controller");
 			};
 
-//			Socket.SocketReceivedMessage += (o, jObj) => {
-//				Console.WriteLine (jObj ["name"]);
-//			};
+			Socket.SocketReceivedMessage += (o, message) => {
+				Console.WriteLine (message);
+			};
 
 			Socket.On ("news_response", (data) => {
 				Debug.WriteLine (data.First ["hello"]);
@@ -74,6 +74,8 @@ namespace Socket.IO.Test
 			sendButton.TouchUpInside += (object sender, EventArgs evtArgs) => {
 				var list = new object [] { 1, "asdlkfjdskf", 3.4f, new Foo () { Bar = "baz"} };
 				Socket.Emit ("news", list);
+				Socket.Send ("regular old message");
+				Socket.SendAcknowledgement (2, new string [] { "A", "B" });
 			};
 
 			var heartbeatButton = new UIButton () {

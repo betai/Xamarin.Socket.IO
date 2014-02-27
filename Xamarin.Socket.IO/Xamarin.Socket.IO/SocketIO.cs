@@ -14,13 +14,13 @@ namespace Xamarin.Socket.IO
 {
 	public class SocketIO : IDisposable
 	{
-		#region ivars
+		#region Instance variables
 
 		WebSocket WebSocket;
 		Dictionary <string, List <Action <JArray>>> EventHandlers = new Dictionary<string, List <Action <JArray>>> ();
+		Timer HeartbeatTimer;
 
 		#pragma warning disable 414
-		Timer HeartbeatTimer;
 		#pragma warning restore
 
 		// socket.io handshake data
@@ -30,7 +30,7 @@ namespace Xamarin.Socket.IO
 
 		#endregion
 
-		#region Constants
+		#region Constants and enums
 
 		const string socketIOConnectionString = "socket.io/1";
 		const string socketIOEncodingPattern = @"^([0-9]):([0-9]+[+]?)?:([^:]*)?(:[^\n]*)?";
@@ -122,7 +122,7 @@ namespace Xamarin.Socket.IO
 		/// <summary>
 		/// Occurs when socket received a message. JObject is in NewtonSoft.Json.Linq
 		/// </summary>
-		public event Action<object, JObject> SocketReceivedMessage = delegate {};
+		public event Action<object, string> SocketReceivedMessage = delegate {};
 
 		/// <summary>
 		/// Occurs when socket received json. JObject is in NewtonSoft.Json.Linq
@@ -181,7 +181,7 @@ namespace Xamarin.Socket.IO
 						}, null, HeartbeatTime / 2, HeartbeatTime / 2);
 
 						var websocketScheme = Secure ? "wss" : "ws";
-						var websocketUri = string.Format ("{0}://{1}:{2}/{3}/websocket/{4}", websocketScheme, Host, Port, socketIOConnectionString, sessionID);
+						var websocketUri = string.Format ("{0}://{1}:{2}/{3}/websocket/{4}", websocketScheme, Host, Port, socketIOConnectionString, SessionID);
 						WebSocket = new WebSocket (websocketUri);
 						AddCallbacksToSocket (ref WebSocket);
 
@@ -243,7 +243,29 @@ namespace Xamarin.Socket.IO
 			else
 				Debug.WriteLine ("Tried to Emit empty name");
 		}
-			
+
+		/// <summary>
+		/// Send the string message. Consider using Emit
+		/// </summary>
+		/// <param name="message">Message.</param>
+		public void Send (string message)
+		{
+			if (Connected)
+				WebSocket.Send (string.Format ("{0}:::{1}", (int)MessageType.Message, message));
+		}
+
+		/// <summary>
+		/// Sends an acknowledgement packet.
+		/// </summary>
+		/// <param name="messageId">Message identifier.</param>
+		/// <param name="data">Data.</param>
+		public void SendAcknowledgement (int messageId, IEnumerable data = null)
+		{
+			var dataToSend = data == null ? "" : "+" + JsonConvert.SerializeObject (data);
+			Debug.WriteLine ("Send Ack with data = {0}", dataToSend);
+			if (Connected)
+				WebSocket.Send (string.Format ("{0}:::{1}{2}", (int)MessageType.Ack, messageId, dataToSend));
+		}
 
 		#endregion
 
@@ -251,20 +273,37 @@ namespace Xamarin.Socket.IO
 
 		void SendHeartbeat ()
 		{
+			//TODO use the TimeoutTime
+
 			if (Connected)
 				WebSocket.Send (string.Format ("{0}::", (int)MessageType.Heartbeat));
+			else
+				HeartbeatTimer.Change (0, 0);
 		}
 
 		void AddCallbacksToSocket (ref WebSocket socket)
 		{
 			socket.Opened += SocketOpenedFunction;
+			socket.Closed += SocketClosed;
+			socket.DataReceived += SocketDataReceivedFunction;
 			socket.MessageReceived += SocketMessageReceivedFunction;
 		}
 			
-		// internal
 		void SocketOpenedFunction (object o, EventArgs e)
 		{
 			Debug.WriteLine ("Socket opened");
+		}
+
+		void SocketClosed (object o, EventArgs e)
+		{
+			Debug.WriteLine ("Socket closed");
+			Connected = false;
+		}
+
+		void SocketDataReceivedFunction (object o, DataReceivedEventArgs e)
+		{
+			Debug.WriteLine ("Socket received data");
+			Debug.WriteLine (e.Data.ToString ());
 		}
 
 		void SocketMessageReceivedFunction (object o, MessageReceivedEventArgs e)
@@ -282,8 +321,6 @@ namespace Xamarin.Socket.IO
 				data = data.Substring (1); //ignore leading ':'
 
 			JObject jObjData = null;
-			if (!string.IsNullOrEmpty (data))
-				jObjData = JObject.Parse (data);
 
 			switch (messageType) {
 
@@ -303,20 +340,25 @@ namespace Xamarin.Socket.IO
 				break;
 
 			case (int)MessageType.Message:
-				Debug.WriteLine ("Message");
-				SocketReceivedMessage (o, jObjData); // general message received handler
+				Debug.WriteLine ("Message = {0}", data);
+				SocketReceivedMessage (o, data); // general message received handler
 				break;
 
 			case (int)MessageType.Json:
-				Debug.WriteLine ("Json");
+				Debug.WriteLine ("Json = {0}", data);
+				if (!string.IsNullOrEmpty (data))
+					jObjData = JObject.Parse (data);
 				SocketReceivedJson (o, jObjData);
 				break;
 
 			case (int)MessageType.Event:
 				Debug.WriteLine ("Event");
 				string eventName = "";
-				if (jObjData != null)
+				if (!string.IsNullOrEmpty (data)) {
+					jObjData = JObject.Parse (data);
 					eventName = jObjData ["name"].ToString ();
+				}
+
 
 				if (!string.IsNullOrEmpty (eventName) && EventHandlers.ContainsKey (eventName)) {
 					var handlers = EventHandlers [eventName];
@@ -324,6 +366,7 @@ namespace Xamarin.Socket.IO
 						if (handler != null) {
 							var args = JArray.Parse (jObjData ["args"].ToString ());
 							handler (args);
+							Debug.WriteLine ("event: {0} with args: {1}", eventName, args.ToString ());
 						}
 					}
 				}
@@ -343,8 +386,10 @@ namespace Xamarin.Socket.IO
 
 			default:
 				Debug.WriteLine ("Something went wrong here...");
-				if (jObjData != null)
-					Debug.WriteLine ("jObj = {0}", jObjData.ToString ());
+				if (!string.IsNullOrEmpty (data)) {
+					jObjData = JObject.Parse (data);
+					Debug.WriteLine ("jObjData = {0}", jObjData.ToString ());
+				}
 				break;
 			}
 
