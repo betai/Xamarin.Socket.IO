@@ -120,15 +120,19 @@ namespace Xamarin.Socket.IO
 		public event Action<object, string> SocketDisconnected = delegate {};
 
 		/// <summary>
-		/// Occurs when socket received a message. JObject is in NewtonSoft.Json.Linq
+		/// Occurs when socket receives a message. JObject is in NewtonSoft.Json.Linq
 		/// </summary>
 		public event Action<object, string> SocketReceivedMessage = delegate {};
 
 		/// <summary>
-		/// Occurs when socket received json. JObject is in NewtonSoft.Json.Linq
+		/// Occurs when socket receives json. JObject is in NewtonSoft.Json.Linq
 		/// </summary>
 		public event Action<object, JObject> SocketReceivedJson = delegate {};
 
+		/// <summary>
+		/// Occurs when socket receives error.
+		/// </summary>
+		public event Action<object, string> SocketReceivedError = delegate {};
 
 		#endregion
 
@@ -400,6 +404,7 @@ namespace Xamarin.Socket.IO
 
 			case (int)MessageType.Error:
 				Debug.WriteLine ("Error");
+				SocketReceivedError (o, data);
 				break;
 
 			case (int)MessageType.Noop:
