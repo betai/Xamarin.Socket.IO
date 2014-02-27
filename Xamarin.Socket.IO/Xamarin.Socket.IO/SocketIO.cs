@@ -202,6 +202,7 @@ namespace Xamarin.Socket.IO
 
 					} catch (Exception e) {
 						Debug.WriteLine (e.Message);
+						Connecting = false;
 						return ConnectionStatus.NotConnected;
 					}
 
@@ -344,7 +345,7 @@ namespace Xamarin.Socket.IO
 
 			var match = Regex.Match (e.Message, socketIOEncodingPattern);
 
-			var messageType = int.Parse (match.Groups [1].Value);
+			var messageType = (MessageType)int.Parse (match.Groups [1].Value);
 			var messageId = match.Groups [2].Value;
 			var endPoint = match.Groups [3].Value;
 			var	data = match.Groups [4].Value;
@@ -356,34 +357,34 @@ namespace Xamarin.Socket.IO
 
 			switch (messageType) {
 
-			case (int)MessageType.Disconnect:
+			case MessageType.Disconnect:
 				Debug.WriteLine ("Disconnected");
 				SocketDisconnected (o, endPoint);
 				break;
 
-			case (int)MessageType.Connect:
+			case MessageType.Connect:
 				Debug.WriteLine ("Connected");
 				SocketConnected (o, endPoint);
 				break;
 
-			case (int)MessageType.Heartbeat:
+			case MessageType.Heartbeat:
 				Debug.WriteLine ("Heartbeat");
 				SendHeartbeat ();
 				break;
 
-			case (int)MessageType.Message:
+			case MessageType.Message:
 				Debug.WriteLine ("Message = {0}", data);
 				SocketReceivedMessage (o, data);
 				break;
 
-			case (int)MessageType.Json:
+			case MessageType.Json:
 				Debug.WriteLine ("Json = {0}", data);
 				if (!string.IsNullOrEmpty (data))
 					jObjData = JObject.Parse (data);
 				SocketReceivedJson (o, jObjData);
 				break;
 
-			case (int)MessageType.Event:
+			case MessageType.Event:
 				Debug.WriteLine ("Event");
 				string eventName = "";
 				if (!string.IsNullOrEmpty (data)) {
@@ -395,7 +396,9 @@ namespace Xamarin.Socket.IO
 					var handlers = EventHandlers [eventName];
 					foreach (var handler in handlers) {
 						if (handler != null) {
-							var args = JArray.Parse (jObjData ["args"].ToString ());
+							JArray args = null;
+							if (jObjData != null)
+								args = JArray.Parse (jObjData ["args"].ToString ());
 							handler (args);
 							Debug.WriteLine ("event: {0} with args: {1}", eventName, args.ToString ());
 						}
@@ -403,7 +406,7 @@ namespace Xamarin.Socket.IO
 				}
 				break;
 
-			case (int)MessageType.Ack:
+			case MessageType.Ack:
 				Debug.WriteLine ("Ack");
 				if (!string.IsNullOrEmpty (data)) {
 					var ackMatch = Regex.Match (data, socketAckEncodingPattern);
@@ -415,12 +418,12 @@ namespace Xamarin.Socket.IO
 				}
 				break;
 
-			case (int)MessageType.Error:
+			case MessageType.Error:
 				Debug.WriteLine ("Error");
 				SocketReceivedError (o, data);
 				break;
 
-			case (int)MessageType.Noop:
+			case MessageType.Noop:
 				Debug.WriteLine ("Noop");
 				break;
 
@@ -440,6 +443,7 @@ namespace Xamarin.Socket.IO
 			Debug.WriteLine ("Send Disconnect Message");
 			WebSocket.Send (string.Format ("{0}::", (int)MessageType.Disconnect));
 			WebSocket.Close ();
+			HeartbeatTimer.Change (0, 0);
 			Connected = false;
 			SocketConnected -= SendDisconnectMessage;
 		}
@@ -448,60 +452,9 @@ namespace Xamarin.Socket.IO
 		{
 			Debug.WriteLine ("Emit");
 			string message = JsonConvert.SerializeObject (messageObject);
-			Debug.WriteLine( string.Format ("{0}:::{1}", (int)MessageType.Event, message));
+			Debug.WriteLine (string.Format ("{0}:::{1}", (int)MessageType.Event, message));
 			if (Connected)
 				WebSocket.Send (string.Format ("{0}:::{1}", (int)MessageType.Event, message));
-		}
-
-		void Send (Packet packet)
-		{
-			if (Connected) {
-				switch (packet.Type) {
-				case MessageType.Connect:
-					break;
-
-				case MessageType.Heartbeat:
-					break;
-
-				case MessageType.Message:
-					var message = packet.Message;
-					WebSocket.Send (string.Format ("{0}:::{1}", (int)MessageType.Message, message));
-					break;
-
-				case MessageType.Json:
-					break;
-
-				case MessageType.Event:
-					break;
-
-				case MessageType.Ack:
-					break;
-
-				case MessageType.Error:
-					break;
-
-				case MessageType.Noop:
-					break;
-
-				default:
-					break;
-				}
-			}
-		}
-
-		#endregion
-
-		#region Helper class
-
-		class Packet {
-
-			public string Message { get; set; }
-			public string Endpoint { get; set; }
-			public MessageType Type { get; set; }
-
-			public Packet () {
-			}
-
 		}
 
 		#endregion

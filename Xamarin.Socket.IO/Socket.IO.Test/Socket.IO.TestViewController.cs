@@ -55,6 +55,10 @@ namespace Socket.IO.Test
 				Debug.WriteLine (data.First ["hello"]);
 			});
 
+			Socket.On ("noArgs", (data) => {
+				Debug.WriteLine ("ios no args");
+			});
+
 			var button = new UIButton () {
 				Frame = new RectangleF (0, 0, View.Bounds.Width / 4, 44),
 				BackgroundColor =  UIColor.Gray

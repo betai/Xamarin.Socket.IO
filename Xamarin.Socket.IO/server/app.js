@@ -13,10 +13,11 @@ io.on('connection', function(socket){
 
   socket.on('news', function (data){
     console.log(data);
-    console.log('news received, emitting news_response now');
-    socket.emit('news_response', { hello : 'world'});
-    socket.json.send({foo:'json'});
-    socket.send('ThisIsAMessage');
+    // console.log('news received, emitting news_response now');
+    // socket.emit('news_response', { hello : 'world'});
+    socket.emit('noArgs');
+//    socket.json.send({foo:'json'});
+//    socket.send('ThisIsAMessage');
   });
 
   socket.on('anything', function (data) {
