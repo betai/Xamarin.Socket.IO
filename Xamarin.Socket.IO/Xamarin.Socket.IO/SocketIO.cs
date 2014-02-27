@@ -407,8 +407,8 @@ namespace Xamarin.Socket.IO
 				Debug.WriteLine ("Ack");
 				if (!string.IsNullOrEmpty (data)) {
 					var ackMatch = Regex.Match (data, socketAckEncodingPattern);
-					var ackMessageId = int.Parse (match.Groups [1].Value);
-					var ackData = match.Groups [2].Value;
+					var ackMessageId = int.Parse (ackMatch.Groups [1].Value);
+					var ackData = ackMatch.Groups [2].Value;
 					if (!string.IsNullOrEmpty (ackData))
 						ackData = ackData.Substring (1); //ignore leading '+'
 					SocketReceivedAcknowledgement (o, ackMessageId, JArray.Parse (ackData));
@@ -451,6 +451,57 @@ namespace Xamarin.Socket.IO
 			Debug.WriteLine( string.Format ("{0}:::{1}", (int)MessageType.Event, message));
 			if (Connected)
 				WebSocket.Send (string.Format ("{0}:::{1}", (int)MessageType.Event, message));
+		}
+
+		void Send (Packet packet)
+		{
+			if (Connected) {
+				switch (packet.Type) {
+				case MessageType.Connect:
+					break;
+
+				case MessageType.Heartbeat:
+					break;
+
+				case MessageType.Message:
+					var message = packet.Message;
+					WebSocket.Send (string.Format ("{0}:::{1}", (int)MessageType.Message, message));
+					break;
+
+				case MessageType.Json:
+					break;
+
+				case MessageType.Event:
+					break;
+
+				case MessageType.Ack:
+					break;
+
+				case MessageType.Error:
+					break;
+
+				case MessageType.Noop:
+					break;
+
+				default:
+					break;
+				}
+			}
+		}
+
+		#endregion
+
+		#region Helper class
+
+		class Packet {
+
+			public string Message { get; set; }
+			public string Endpoint { get; set; }
+			public MessageType Type { get; set; }
+
+			public Packet () {
+			}
+
 		}
 
 		#endregion
