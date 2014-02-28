@@ -21,9 +21,6 @@ namespace Xamarin.Socket.IO
 		Timer HeartbeatTimer;
 		Timer TimeoutTimer;
 
-		#pragma warning disable 414
-		#pragma warning restore
-
 		// socket.io handshake data
 		string SessionID;
 		int HeartbeatTime;
