@@ -216,6 +216,7 @@ namespace Xamarin.Socket.IO
 
 						TimeoutTimer = new Timer (_ => {
 							Disconnect ();
+							TimedOut ();
 						}, null, TimeoutTime, Timeout.Infinite);
 
 						var websocketScheme = Secure ? "wss" : "ws";
@@ -372,6 +373,8 @@ namespace Xamarin.Socket.IO
 		/// <param name="json">Json.</param>
 		public void SendJson (string json, string endpoint = "", string messageId = "")
 		{
+			Debug.WriteLine ("sending json");
+			Debug.WriteLine (string.Format ("{0}:{1}:{2}:{3}", (int)MessageType.Json, messageId, endpoint, json));
 			if (Connected && !string.IsNullOrEmpty (json))
 				WebSocket.Send (string.Format ("{0}:{1}:{2}:{3}", (int)MessageType.Json, messageId, endpoint, json));
 		}
@@ -397,8 +400,6 @@ namespace Xamarin.Socket.IO
 
 		void SendHeartbeat ()
 		{
-			//TODO use the TimeoutTime
-
 			if (Connected)
 				WebSocket.Send (string.Format ("{0}::", (int)MessageType.Heartbeat));
 			else

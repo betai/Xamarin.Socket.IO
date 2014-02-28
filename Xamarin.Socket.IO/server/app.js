@@ -4,28 +4,22 @@ var io = require('socket.io').listen(server);
 
 io.on('connection', function(socket){
 
-  socket.on('message', function(data){
-    console.log('In message');
-    console.log(data);
-    socket.emit ('messageName', { arg1 : 'foo' });
-    socket.emit('news_response', { hello : 'world', ok : 'thisWorks'});
-  });
+    socket.on('message', function(data){
+	console.log('received: ' + JSON.stringify(data));
+	socket.emit('news_response', { hello : 'world'});
+    });
 
-  socket.on('news', function (data){
-    console.log(data);
+    socket.on('news', function (data){
+	console.log('received news');
+	socket.emit('news_response', { hello : 'world'});
+	socket.json.send({foo:'json'});
+	socket.send('ThisIsAMessage');
+    });
+    
+    socket.on('disconnect', function(){
+	console.log('diconnected');
+    });
 
-    // console.log('news received, emitting news_response now');
-    // socket.emit('news_response', { hello : 'world'});
-    socket.emit('noArgs');
-//    socket.json.send({foo:'json'});
-//    socket.send('ThisIsAMessage');
-  });
-
-  socket.on('anything', function (data) {
-    console.log ('In anything' + data);
-  });
-
-  socket.on('disconnect', function(){});
 });
- 
+
 server.listen(3000);

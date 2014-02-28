@@ -43,29 +43,18 @@ namespace Socket.IO.Test
 			base.ViewWillAppear (animated);
 
 			Socket = new SocketIO (host : "127.0.0.1", port : 3000);
-			Socket.SocketConnected += (arg1, arg2) => {
-				Console.WriteLine ("socket connected, in view controller");
-			};
-
-			Socket.SocketReceivedMessage += (o, message) => {
-				Console.WriteLine (message);
-			};
 
 			Socket.On ("news_response", (data) => {
 				Debug.WriteLine (data.First ["hello"]);
 			});
 
-			Socket.On ("noArgs", (data) => {
-				Debug.WriteLine ("ios no args");
-			});
-
-			var button = new UIButton () {
+			var connectButton = new UIButton () {
 				Frame = new RectangleF (0, 0, View.Bounds.Width / 4, 44),
 				BackgroundColor =  UIColor.Gray
 			};
 
-			button.SetTitle ("connect", UIControlState.Normal);
-			button.TouchUpInside += async (object sender, EventArgs evtArgs) => {
+			connectButton.SetTitle ("connect", UIControlState.Normal);
+			connectButton.TouchUpInside += async (object sender, EventArgs evtArgs) => {
 				await Socket.ConnectAsync ();
 			};
 
@@ -76,7 +65,7 @@ namespace Socket.IO.Test
 
 			sendButton.SetTitle ("message", UIControlState.Normal);
 			sendButton.TouchUpInside += (object sender, EventArgs evtArgs) => {
-				var list = new object [] { 1, "asdlkfjdskf", 3.4f, new Foo () { Bar = "baz"} };
+				var list = new object [] { 1, "randomString", 3.4f, new Foo () { Bar = "baz"} };
 				Socket.Emit ("news", list);
 				Socket.Send ("regular old message");
 				Socket.SendJson (new Foo () {
@@ -85,18 +74,18 @@ namespace Socket.IO.Test
 				Socket.SendAcknowledgement (2, new string [] { "A", "B" });
 			};
 
-			var heartbeatButton = new UIButton () {
+			var disconnectButton = new UIButton () {
 				Frame = new RectangleF (View.Bounds.Width * 0.75f, 20, View.Bounds.Width / 4, 44),
 				BackgroundColor = UIColor.Gray
 			};
 
-			heartbeatButton.SetTitle ("disconnect", UIControlState.Normal);
-			heartbeatButton.TouchUpInside += (object sender, EventArgs evtArgs) => {
+			disconnectButton.SetTitle ("disconnect", UIControlState.Normal);
+			disconnectButton.TouchUpInside += (object sender, EventArgs evtArgs) => {
 				Socket.Disconnect ();
 			};
 
-			button.Center = View.Center;
-			View.AddSubviews (button, sendButton, heartbeatButton);
+			connectButton.Center = View.Center;
+			View.AddSubviews (connectButton, sendButton, disconnectButton);
 		}
 
 
