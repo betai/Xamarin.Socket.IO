@@ -13,6 +13,7 @@ This library uses WebSocket4Net for the websocket connections, and Newtonsoft.Js
     then run ```brew install node```)
   * Navigate to the server directory and run ```npm install```
   * run ```node app.js```
+  (If you run into a module.js exception in socket.io, see the following [fix](http://stackoverflow.com/questions/11266608/socket-io-error))
 
 #####Restore the NuGet packages
   
