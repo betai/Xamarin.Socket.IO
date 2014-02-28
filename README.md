@@ -1,4 +1,43 @@
-Xamarin.Socket.IO
+Xamarin.Socket.IO (beta)
 =================
 
-C# socket.io Client for mobile
+C# interface for socket.io on mobile platforms.
+
+This library uses WebSocket4Net for the websocket connections, and Newtonsoft.Json to serialize the objects passed through the socket.
+
+##Running the Test app (OSX)
+
+#####Set up the local server
+
+  * Install node: you can install this via [brew](http://brew.sh/)
+  * Navigate to the server directory and run ```npm install```
+  * run ```node app.js```
+
+#####Restore the NuGet packages
+  
+  * Right-click on references and select "Restore NuGet Packages"
+
+#####Run the app
+
+  * Set the Socket.IO.Test project to be the startup project
+
+##API
+
+The basics
+
+```C#
+var socket = new SocketIO (host: "www.example.com", port: 80);
+
+var connectionStatus = await socket.ConnectAsync ();
+
+if (connectionStatus == ConnectionStatus.Connected) {
+  socket.Emit ("MessageName", new Foo [] { new Foo () }); //emit message named "MessageName" with args a list of Foos
+  socket.On ("MessageReceived", (data) => {               //call this lambda when a message named "MessageReceived"
+    Console.WriteLine (data.First ["jsonFieldName"]);     //is emitted from the server
+  });
+}
+
+socket.Disconnect ();
+```
+\*Note that ```data``` is a JArray (IEnumerable)
+
