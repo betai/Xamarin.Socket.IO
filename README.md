@@ -9,7 +9,8 @@ This library uses WebSocket4Net for the websocket connections, and Newtonsoft.Js
 
 #####Set up the local server
 
-  * Install node: you can install this via [brew](http://brew.sh/)
+  * Install node: you can install this via [brew](http://brew.sh/) (see bottom of the page for install script,
+    then run ```brew install node```)
   * Navigate to the server directory and run ```npm install```
   * run ```node app.js```
 
