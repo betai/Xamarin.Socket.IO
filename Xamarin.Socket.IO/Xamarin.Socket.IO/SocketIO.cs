@@ -115,32 +115,33 @@ namespace Xamarin.Socket.IO
 		/// <summary>
 		/// Occurs when socket connects. The enpoint is passed in the argument
 		/// </summary>
-		public event Action<object, string> SocketConnected = delegate {};
+		public event Action<MessageID, string> SocketConnected = delegate {};
 
 		/// <summary>
 		/// Occurs when socket disconnects. The enpoint is passed in the argument
 		/// </summary>
-		public event Action<object, string> SocketDisconnected = delegate {};
+		public event Action<MessageID, string> SocketDisconnected = delegate {};
 
 		/// <summary>
 		/// Occurs when socket receives a message. JObject is in NewtonSoft.Json.Linq
 		/// </summary>
-		public event Action<object, string> SocketReceivedMessage = delegate {};
+		public event Action<MessageID, string> SocketReceivedMessage = delegate {};
 
 		/// <summary>
 		/// Occurs when socket receives json. JObject is in NewtonSoft.Json.Linq
 		/// </summary>
-		public event Action<object, JObject> SocketReceivedJson = delegate {};
+		public event Action<MessageID, JObject> SocketReceivedJson = delegate {};
 
 		/// <summary>
 		/// Occurs when socket receives error.
 		/// </summary>
-		public event Action<object, string> SocketReceivedError = delegate {};
+		public event Action<MessageID, string> SocketReceivedError = delegate {};
 
 		/// <summary>
-		/// Occurs when socket received acknowledgement.
+		/// Occurs when socket received acknowledgement from int messageId.
 		/// </summary>
-		public event Action<object, int, JArray> SocketReceivedAcknowledgement = delegate {};
+		public event Action<int, JArray> SocketReceivedAcknowledgement = delegate {};
+
 
 		#endregion
 
@@ -254,7 +255,7 @@ namespace Xamarin.Socket.IO
 		public void Disconnect (string endPoint = "")
 		{
 			if (Connected) {
-				SendDisconnectMessage (null, endPoint);
+				SendDisconnectMessage (null, endPoint); // SendDisconnectMessage in private helper methods below
 			} else if (Connecting) {
 				SocketConnected += SendDisconnectMessage;
 			}
@@ -278,7 +279,7 @@ namespace Xamarin.Socket.IO
 
 		/// <summary>
 		/// Emit the event named "name" with arguments "args"
-		/// "args" can be customize via JSon.Net attributes
+		/// "args" can be customized via JSon.Net attributes
 		/// </summary>
 		/// <param name="name">Name.</param>
 		/// <param name="args">Arguments.</param>
@@ -287,39 +288,75 @@ namespace Xamarin.Socket.IO
 			Emit (name, args, "", "");
 		}
 
+		/// <summary>
+		/// Emit the event named "name" with arguments "args" to "endpoint"
+		/// "args" can be customized via JSon.Net attributes
+		/// </summary>
+		/// <param name="name">Name.</param>
+		/// <param name="args">Arguments.</param>
+		/// <param name="endpoint">Endpoint.</param>
 		public void Emit (string name, IEnumerable args, string endpoint)
 		{
 			Emit (name, args, endpoint, "");
 		}
 
+		/// <summary>
+		/// Emit the event named "name" with arguments "args" to "endpoint" with ackId "messageId"
+		/// "args" can be customized via JSon.Net attributes
+		/// </summary>
+		/// <param name="name">Name.</param>
+		/// <param name="args">Arguments.</param>
+		/// <param name="endpoint">Endpoint.</param>
+		/// <param name="messageId">Message identifier.</param>
 		public void Emit (string name, IEnumerable args, string endpoint, string messageId)
 		{
 			if (!string.IsNullOrEmpty (name))
-				EmitMessage (new Message (name, args), endpoint, messageId);
+				EmitMessage (new Message (name, args), endpoint, messageId); // EmitMessage in private helper methods below
 			else
 				Debug.WriteLine ("Tried to Emit empty name");
 		}
 
+
 		/// <summary>
-		/// Send the string message. Consider using Emit instead
+		/// Sends the string "message". Consider using Emit instead
 		/// </summary>
 		/// <param name="message">Message.</param>
 		public void Send (string message)
 		{
-			if (Connected)
-				WebSocket.Send (string.Format ("{0}:::{1}", (int)MessageType.Message, message));
+			Send (message, "", "");
 		}
 
+		/// <summary>
+		/// Sends the string "message" to "endpoint". Consider using Emit instead
+		/// </summary>
+		/// <param name="message">Message.</param>
+		/// <param name="endpoint">Endpoint.</param>
+		public void Send (string message, string endpoint)
+		{
+			Send (message, endpoint, "");
+		}
+
+		/// <summary>
+		/// Sends the string "message" to "endpoint" with ackId "messageId". Consider using Emit instead
+		/// </summary>
+		/// <param name="message">Message.</param>
+		/// <param name="endpoint">Endpoint.</param>
+		/// <param name="messageId">Message identifier.</param>
+		public void Send (string message, string endpoint, string messageId)
+		{
+			if (Connected)
+				WebSocket.Send (string.Format ("{0}:{1}:{2}:{3}", (int)MessageType.Message, messageId, endpoint, message));
+		}
 
 		/// <summary>
 		/// Sends the obj as JSon. Consider using Emit instead
 		/// </summary>
 		/// <param name="obj">Object.</param>
-		public void SendJson (object obj)
+		public void SendJson (object obj, string endpoint = "", string messageId = "")
 		{
 			if (obj != null) {
 				string json = JsonConvert.SerializeObject (obj);
-				SendJson (json);
+				SendJson (json, endpoint, messageId);
 			}
 		}
 
@@ -327,14 +364,15 @@ namespace Xamarin.Socket.IO
 		/// Sends the JSon string json. Consider using Emit instead
 		/// </summary>
 		/// <param name="json">Json.</param>
-		public void SendJson (string json)
+		public void SendJson (string json, string endpoint = "", string messageId = "")
 		{
 			if (Connected && !string.IsNullOrEmpty (json))
-				WebSocket.Send (string.Format ("{0}:::{1}", (int)MessageType.Json, json));
+				WebSocket.Send (string.Format ("{0}:{1}:{2}:{3}", (int)MessageType.Json, messageId, endpoint, json));
 		}
 
 		/// <summary>
 		/// Sends an acknowledgement packet.
+		/// See https://github.com/LearnBoost/socket.io-spec#6-ack for more info
 		/// </summary>
 		/// <param name="messageId">Message identifier.</param>
 		/// <param name="data">Data.</param>
@@ -345,6 +383,7 @@ namespace Xamarin.Socket.IO
 			if (Connected)
 				WebSocket.Send (string.Format ("{0}:::{1}{2}", (int)MessageType.Ack, messageId, dataToSend));
 		}
+
 
 		#endregion
 
@@ -394,6 +433,8 @@ namespace Xamarin.Socket.IO
 			var messageType = (MessageType)int.Parse (match.Groups [1].Value);
 			var messageId = match.Groups [2].Value;
 			var endpoint = match.Groups [3].Value;
+
+			var socketMessageInfo = new MessageID (messageId, endpoint);
 			var	data = match.Groups [4].Value;
 
 			if (!string.IsNullOrEmpty (data))
@@ -405,12 +446,12 @@ namespace Xamarin.Socket.IO
 
 			case MessageType.Disconnect:
 				Debug.WriteLine ("Disconnected");
-				SocketDisconnected (o, endpoint);
+				SocketDisconnected (socketMessageInfo, endpoint);
 				break;
 
 			case MessageType.Connect:
 				Debug.WriteLine ("Connected");
-				SocketConnected (o, endpoint);
+				SocketConnected (socketMessageInfo, endpoint);
 				break;
 
 			case MessageType.Heartbeat:
@@ -420,14 +461,14 @@ namespace Xamarin.Socket.IO
 
 			case MessageType.Message:
 				Debug.WriteLine ("Message = {0}", data);
-				SocketReceivedMessage (o, data);
+				SocketReceivedMessage (socketMessageInfo, data);
 				break;
 
 			case MessageType.Json:
 				Debug.WriteLine ("Json = {0}", data);
 				if (!string.IsNullOrEmpty (data))
 					jObjData = JObject.Parse (data);
-				SocketReceivedJson (o, jObjData);
+				SocketReceivedJson (socketMessageInfo, jObjData);
 				break;
 
 			case MessageType.Event:
@@ -443,10 +484,10 @@ namespace Xamarin.Socket.IO
 					foreach (var handler in handlers) {
 						if (handler != null) {
 							JArray args = null;
-							if (jObjData != null)
+							if (jObjData != null && jObjData["args"] != null)
 								args = JArray.Parse (jObjData ["args"].ToString ());
 							handler (args);
-							Debug.WriteLine ("event: {0} with args: {1}", eventName, args.ToString ());
+							Debug.WriteLine ("event: {0} with args: {1}", eventName, args);
 						}
 					}
 				}
@@ -458,15 +499,19 @@ namespace Xamarin.Socket.IO
 					var ackMatch = Regex.Match (data, socketAckEncodingPattern);
 					var ackMessageId = int.Parse (ackMatch.Groups [1].Value);
 					var ackData = ackMatch.Groups [2].Value;
-					if (!string.IsNullOrEmpty (ackData))
+					JArray jData = null;
+
+					if (!string.IsNullOrEmpty (ackData)) {
 						ackData = ackData.Substring (1); //ignore leading '+'
-					SocketReceivedAcknowledgement (o, ackMessageId, JArray.Parse (ackData));
+						jData = JArray.Parse (ackData);
+					}
+					SocketReceivedAcknowledgement (ackMessageId, jData);
 				}
 				break;
 
 			case MessageType.Error:
 				Debug.WriteLine ("Error");
-				SocketReceivedError (o, data);
+				SocketReceivedError (socketMessageInfo, data);
 				break;
 
 			case MessageType.Noop:
@@ -517,4 +562,3 @@ namespace Xamarin.Socket.IO
 		#endregion
 	}
 }
-
