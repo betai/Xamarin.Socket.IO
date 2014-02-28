@@ -19,6 +19,7 @@ namespace Xamarin.Socket.IO
 		WebSocket WebSocket;
 		Dictionary <string, List <Action <JArray>>> EventHandlers = new Dictionary<string, List <Action <JArray>>> ();
 		Timer HeartbeatTimer;
+		Timer TimeoutTimer;
 
 		#pragma warning disable 414
 		#pragma warning restore
@@ -142,6 +143,10 @@ namespace Xamarin.Socket.IO
 		/// </summary>
 		public event Action<int, JArray> SocketReceivedAcknowledgement = delegate {};
 
+		/// <summary>
+		/// Occurs on timeout.
+		/// </summary>
+		public event Action TimedOut = delegate {};
 
 		#endregion
 
@@ -209,6 +214,10 @@ namespace Xamarin.Socket.IO
 							SendHeartbeat ();
 						}, null, HeartbeatTime / 2, HeartbeatTime / 2);
 
+						TimeoutTimer = new Timer (_ => {
+							Disconnect ();
+						}, null, TimeoutTime, Timeout.Infinite);
+
 						var websocketScheme = Secure ? "wss" : "ws";
 						var websocketUri = string.Format ("{0}://{1}:{2}/{3}/websocket/{4}", websocketScheme, Host, Port, socketIOConnectionString, SessionID);
 						WebSocket = new WebSocket (websocketUri);
@@ -254,11 +263,8 @@ namespace Xamarin.Socket.IO
 		/// </summary>
 		public void Disconnect (string endPoint = "")
 		{
-			if (Connected) {
+			if (Connected || Connecting)
 				SendDisconnectMessage (null, endPoint); // SendDisconnectMessage in private helper methods below
-			} else if (Connecting) {
-				SocketConnected += SendDisconnectMessage;
-			}
 		}
 
 		/// <summary>
@@ -427,6 +433,8 @@ namespace Xamarin.Socket.IO
 		void SocketMessageReceivedFunction (object o, MessageReceivedEventArgs e)
 		{
 			Debug.WriteLine ("Received Message: {0}", e.Message);
+
+			TimeoutTimer.Change (TimeoutTime, Timeout.Infinite);
 
 			var match = Regex.Match (e.Message, socketIOEncodingPattern);
 
