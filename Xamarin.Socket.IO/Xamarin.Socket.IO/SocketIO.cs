@@ -62,8 +62,8 @@ namespace Xamarin.Socket.IO
 
 		#region Connection status
 
-		bool Connected { get; set; }
-		bool Connecting { get; set; }
+		public bool Connected { get; set; }
+		public bool Connecting { get; set; }
 
 		#endregion
 
