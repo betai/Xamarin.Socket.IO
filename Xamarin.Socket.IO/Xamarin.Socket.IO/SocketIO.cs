@@ -116,6 +116,11 @@ namespace Xamarin.Socket.IO
 		public event Action<MessageID, string> SocketConnected = delegate {};
 
 		/// <summary>
+		/// Occurs when socket fails to connect.
+		/// </summary>
+		public event Action<string> SocketFailedToConnect = delegate {};
+
+		/// <summary>
 		/// Occurs when socket disconnects. The enpoint is passed in the argument
 		/// </summary>
 		public event Action<MessageID, string> SocketDisconnected = delegate {};
@@ -230,6 +235,7 @@ namespace Xamarin.Socket.IO
 					} catch (Exception e) {
 						Debug.WriteLine (e.Message);
 						Connecting = false;
+						SocketFailedToConnect (e.Message);
 						return ConnectionStatus.NotConnected;
 					}
 
