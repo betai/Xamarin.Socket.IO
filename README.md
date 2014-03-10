@@ -37,6 +37,8 @@ if (connectionStatus == ConnectionStatus.Connected) {
   socket.On ("MessageReceived", (data) => {               //call this lambda when a message named "MessageReceived"
     Console.WriteLine (data.First ["jsonFieldName"]);     //is emitted from the server
   });
+} else {
+  Console.WriteLine ("Websocket failed to connect to the server");
 }
 
 socket.Disconnect ();

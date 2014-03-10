@@ -54,7 +54,6 @@ namespace Xamarin.Socket.IO
 		bool Secure { get; set; }
 		string Host { get; set; }
 		int Port { get; set; }
-		List<string> Parameters { get; set; }
 		ConnectionType DefaultConnectionType { get; set; } 
 
 		#endregion
@@ -88,14 +87,13 @@ namespace Xamarin.Socket.IO
 		/// <param name="secure">If set to <c>true</c> secure.</param>
 		/// <param name="parameters">Parameters.</param>
 		/// <param name="connectionType">Connection type.</param>
-		public SocketIO (string host, int port = 80, bool secure = false, List<string> parameters = null, ConnectionType connectionType = ConnectionType.WebSocket)
+		public SocketIO (string host, int port = 80, bool secure = false, ConnectionType connectionType = ConnectionType.WebSocket)
 		{
 			//TODO: Regex the host to decrease the sensitivity
 
 			Secure = secure;
 			Host = host;
 			Port = port;
-			Parameters = parameters;
 			DefaultConnectionType = connectionType;
 
 			JsonConvert.DefaultSettings = () => {
@@ -116,7 +114,7 @@ namespace Xamarin.Socket.IO
 		public event Action<MessageID, string> SocketConnected = delegate {};
 
 		/// <summary>
-		/// Occurs when socket fails to connect.
+		/// Occurs when socket fails to connect. The error message is passed in the argument
 		/// </summary>
 		public event Action<string> SocketFailedToConnect = delegate {};
 
@@ -182,6 +180,22 @@ namespace Xamarin.Socket.IO
 			return await ConnectAsync ("");
 		}
 
+
+		/// <summary>
+		/// Connects to http://host:port/ or https://host:port asynchronously depending on the security parameter passed in the constructor
+		/// This method constructs a query string from a Dictionary of queries (i.e. key,value => ?key=value)
+		/// See https://github.com/LearnBoost/socket.io-spec#query for more info on query		
+		/// </summary>
+		/// <returns>The async.</returns>
+		/// <param name="queries">Queries.</param>
+		public async Task<ConnectionStatus> ConnectAsync (Dictionary<string, string> queries)
+		{
+			var queryString = "";
+			foreach (KeyValuePair<string, string> query in queries)
+				queryString += string.Format ("?{0}={1}", query.Key, query.Value);
+			return await ConnectAsync (queryString);
+		}
+
 		/// <summary>
 		/// Connects to http://host:port/ or https://host:port asynchronously depending on the security parameter passed in the constructor
 		/// See https://github.com/LearnBoost/socket.io-spec#query for more info on query
@@ -199,11 +213,9 @@ namespace Xamarin.Socket.IO
 
 					try {
 						var scheme = Secure ? "https" : "http";
-						if (!string.IsNullOrEmpty (query)) {
-							if (query[0] != '?')
-								query = "?" + query;
-						}
-						
+
+						//TODO: add timestamp
+
 						var handshakeUri = string.Format ("{0}://{1}:{2}/{3}/{4}", scheme, Host, Port, socketIOConnectionString, query);
 						responseBody = await client.GetStringAsync (handshakeUri);
 
@@ -220,6 +232,8 @@ namespace Xamarin.Socket.IO
 							Disconnect ();
 							TimedOut ();
 						}, null, TimeoutTime, Timeout.Infinite);
+
+						//TODO: allow for long-polling
 
 						var websocketScheme = Secure ? "wss" : "ws";
 						var websocketUri = string.Format ("{0}://{1}:{2}/{3}/websocket/{4}", websocketScheme, Host, Port, socketIOConnectionString, SessionID);
@@ -498,7 +512,7 @@ namespace Xamarin.Socket.IO
 							JArray args = null;
 							if (jObjData != null && jObjData["args"] != null)
 								args = JArray.Parse (jObjData ["args"].ToString ());
-							handler (args);
+							handler (args.First);
 							Debug.WriteLine ("event: {0} with args: {1}", eventName, args);
 						}
 					}
