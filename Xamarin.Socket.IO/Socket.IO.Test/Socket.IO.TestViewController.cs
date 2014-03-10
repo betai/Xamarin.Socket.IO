@@ -45,7 +45,7 @@ namespace Socket.IO.Test
 			Socket = new SocketIO (host : "127.0.0.1", port : 3000);
 
 			Socket.On ("news_response", (data) => {
-				Debug.WriteLine (data.First ["hello"]);
+				Debug.WriteLine (data ["hello"]);
 			});
 
 			var connectButton = new UIButton () {

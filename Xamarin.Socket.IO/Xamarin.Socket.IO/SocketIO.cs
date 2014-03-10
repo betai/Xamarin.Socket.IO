@@ -17,7 +17,7 @@ namespace Xamarin.Socket.IO
 		#region Instance variables
 
 		WebSocket WebSocket;
-		Dictionary <string, List <Action <JArray>>> EventHandlers = new Dictionary<string, List <Action <JArray>>> ();
+		Dictionary <string, List <Action <JToken>>> EventHandlers = new Dictionary<string, List <Action <JToken>>> ();
 		Timer HeartbeatTimer;
 		Timer TimeoutTimer;
 
@@ -291,13 +291,13 @@ namespace Xamarin.Socket.IO
 		/// </summary>
 		/// <param name="name">Name.</param>
 		/// <param name="handler">Handler.</param>
-		public void On (string name, Action <JArray> handler)
+		public void On (string name, Action <JToken> handler)
 		{
 			if (!string.IsNullOrEmpty (name)) {
 				if (EventHandlers.ContainsKey (name))
 					EventHandlers [name].Add (handler);
 				else 
-					EventHandlers [name] = new List<Action<JArray>> () { handler };
+					EventHandlers [name] = new List<Action<JToken>> () { handler };
 			}
 		}
 

@@ -35,7 +35,7 @@ var connectionStatus = await socket.ConnectAsync ();
 if (connectionStatus == ConnectionStatus.Connected) {
   socket.Emit ("MessageName", new Foo [] { new Foo () }); //emit message named "MessageName" with args a list of Foos
   socket.On ("MessageReceived", (data) => {               //call this lambda when a message named "MessageReceived"
-    Console.WriteLine (data.First ["jsonFieldName"]);     //is emitted from the server
+    Console.WriteLine (data ["jsonFieldName"]);     //is emitted from the server
   });
 } else {
   Console.WriteLine ("Websocket failed to connect to the server");
@@ -43,5 +43,5 @@ if (connectionStatus == ConnectionStatus.Connected) {
 
 socket.Disconnect ();
 ```
-\*Note that ```data``` is a JArray (IEnumerable)
+\*Note that ```data``` is a JToken.
 
