@@ -22,9 +22,9 @@ namespace Xamarin.Socket.IO
 		Timer TimeoutTimer;
 
 		// socket.io handshake data
-		string SessionID;
-		int HeartbeatTime;
-		int TimeoutTime;
+		public string SessionID { get; set; }
+		public int HeartbeatTime { get; set; }
+		public int TimeoutTime { get; set; }
 
 		#endregion
 
@@ -452,7 +452,7 @@ namespace Xamarin.Socket.IO
 		{
 			Debug.WriteLine ("Received Message: {0}", e.Message);
 
-			TimeoutTimer.Change (TimeoutTime, Timeout.Infinite);
+			TimeoutTimer.Change (TimeoutTime * 2, Timeout.Infinite);
 
 			var match = Regex.Match (e.Message, socketIOEncodingPattern);
 
