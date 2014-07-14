@@ -31,8 +31,9 @@ namespace Xamarin.Socket.IO
 		#region Constants and enums
 
 		const string socketIOConnectionString = "socket.io/1";
-		const string socketIOEncodingPattern = @"^([0-9]):([0-9]+[+]?)?:([^:]*)?(:[^\n]*)?";
-		const string socketAckEncodingPattern = @"^([0-9]+)(\+[^\n]*)?";
+//		const string socketIOEncodingPattern = @"^([0-9])(:)([0-9]+[+]?)?(:)([^:]*)?(:[^\n]*)?";
+		const string socketIOEncodingPattern = @"^([0-9]):([0-9]+[+]?)?:([^:]*)?(:([^\n]*))?";
+		const string socketAckEncodingPattern = @"^([0-9]+)(\+([^\n]*))?";
 
 		enum MessageType {
 			Disconnect = 0,
@@ -456,15 +457,16 @@ namespace Xamarin.Socket.IO
 
 			var match = Regex.Match (e.Message, socketIOEncodingPattern);
 
+//			^([0-9]):([0-9]+[+]?)?:([^:]*)?(:([^\n]*))?
+
 			var messageType = (MessageType)int.Parse (match.Groups [1].Value);
 			var messageId = match.Groups [2].Value;
 			var endpoint = match.Groups [3].Value;
 
 			var socketMessageInfo = new MessageID (messageId, endpoint);
-			var	data = match.Groups [4].Value;
-
-			if (!string.IsNullOrEmpty (data))
-				data = data.Substring (1); //ignore leading ':'
+			var	data = match.Groups [5].Value;
+			if (!string.IsNullOrWhiteSpace (data))
+				Debug.WriteLine ("");
 
 			JObject jObjData = null;
 
@@ -524,13 +526,12 @@ namespace Xamarin.Socket.IO
 				if (!string.IsNullOrEmpty (data)) {
 					var ackMatch = Regex.Match (data, socketAckEncodingPattern);
 					var ackMessageId = int.Parse (ackMatch.Groups [1].Value);
-					var ackData = ackMatch.Groups [2].Value;
+					var ackData = ackMatch.Groups [3].Value;
 					JArray jData = null;
 
-					if (!string.IsNullOrEmpty (ackData)) {
-						ackData = ackData.Substring (1); //ignore leading '+'
+					if (!string.IsNullOrEmpty (ackData))
 						jData = JArray.Parse (ackData);
-					}
+
 					SocketReceivedAcknowledgement (ackMessageId, jData);
 				}
 				break;
