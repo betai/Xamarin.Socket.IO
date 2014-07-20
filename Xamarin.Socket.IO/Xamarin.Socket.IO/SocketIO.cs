@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using System.Collections;
-using System.Diagnostics;
-using System.Threading;
+//using System.Diagnostics;
+using System.Timers;
 using Newtonsoft.Json.Linq;
 using System.Text.RegularExpressions;
 
@@ -31,7 +31,6 @@ namespace Xamarin.Socket.IO
 		#region Constants and enums
 
 		const string socketIOConnectionString = "socket.io/1";
-//		const string socketIOEncodingPattern = @"^([0-9])(:)([0-9]+[+]?)?(:)([^:]*)?(:[^\n]*)?";
 		const string socketIOEncodingPattern = @"^([0-9]):([0-9]+[+]?)?:([^:]*)?(:([^\n]*))?";
 		const string socketAckEncodingPattern = @"^([0-9]+)(\+([^\n]*))?";
 
@@ -225,14 +224,18 @@ namespace Xamarin.Socket.IO
 						HeartbeatTime = int.Parse(responseElements [1]) * 1000; // convert heartbeatTime to milliseconds
 						TimeoutTime = int.Parse (responseElements [2]) * 1000;
 
-						HeartbeatTimer = new Timer (_ => {
+						HeartbeatTimer = new Timer (HeartbeatTime / 2);
+						HeartbeatTimer.Elapsed += (object sender, ElapsedEventArgs e) => {
 							SendHeartbeat ();
-						}, null, HeartbeatTime / 2, HeartbeatTime / 2);
+						};
+						HeartbeatTimer.Start ();
 
-						TimeoutTimer = new Timer (_ => {
+						TimeoutTimer = new Timer (TimeoutTime);
+						TimeoutTimer.Elapsed += (object sender, ElapsedEventArgs e) => {
 							Disconnect ();
 							TimedOut ();
-						}, null, TimeoutTime, Timeout.Infinite);
+						};
+						TimeoutTimer.Start ();
 
 						//TODO: allow for long-polling
 
@@ -248,7 +251,7 @@ namespace Xamarin.Socket.IO
 						return ConnectionStatus.Connected;
 
 					} catch (Exception e) {
-						Debug.WriteLine (e.Message);
+						Console.WriteLine (e.Message);
 						Connecting = false;
 						SocketFailedToConnect (e.Message);
 						return ConnectionStatus.NotConnected;
@@ -338,7 +341,7 @@ namespace Xamarin.Socket.IO
 			if (!string.IsNullOrEmpty (name))
 				EmitMessage (new Message (name, args), endpoint, messageId); // EmitMessage in private helper methods below
 			else
-				Debug.WriteLine ("Tried to Emit empty name");
+				Console.WriteLine ("Tried to Emit empty name");
 		}
 
 
@@ -391,8 +394,8 @@ namespace Xamarin.Socket.IO
 		/// <param name="json">Json.</param>
 		public void SendJson (string json, string endpoint = "", string messageId = "")
 		{
-			Debug.WriteLine ("sending json");
-			Debug.WriteLine (string.Format ("{0}:{1}:{2}:{3}", (int)MessageType.Json, messageId, endpoint, json));
+			Console.WriteLine ("sending json");
+			Console.WriteLine (string.Format ("{0}:{1}:{2}:{3}", (int)MessageType.Json, messageId, endpoint, json));
 			if (Connected && !string.IsNullOrEmpty (json))
 				WebSocket.Send (string.Format ("{0}:{1}:{2}:{3}", (int)MessageType.Json, messageId, endpoint, json));
 		}
@@ -406,7 +409,7 @@ namespace Xamarin.Socket.IO
 		public void SendAcknowledgement (int messageId, IEnumerable data = null)
 		{
 			var dataToSend = data == null ? "" : "+" + JsonConvert.SerializeObject (data);
-			Debug.WriteLine ("Send Ack with data = {0}", dataToSend);
+			Console.WriteLine ("Send Ack with data = {0}", dataToSend);
 			if (Connected)
 				WebSocket.Send (string.Format ("{0}:::{1}{2}", (int)MessageType.Ack, messageId, dataToSend));
 		}
@@ -421,7 +424,7 @@ namespace Xamarin.Socket.IO
 			if (Connected)
 				WebSocket.Send (string.Format ("{0}::", (int)MessageType.Heartbeat));
 			else
-				HeartbeatTimer.Change (0, 0);
+				HeartbeatTimer.Stop ();
 		}
 
 		void AddCallbacksToSocket (ref WebSocket socket)
@@ -434,26 +437,27 @@ namespace Xamarin.Socket.IO
 			
 		void SocketOpenedFunction (object o, EventArgs e)
 		{
-			Debug.WriteLine ("Socket opened");
+			Console.WriteLine ("Socket opened");
 		}
 
 		void SocketClosed (object o, EventArgs e)
 		{
-			Debug.WriteLine ("Socket closed");
+			Console.WriteLine ("Socket closed");
 			Connected = false;
 		}
 
 		void SocketDataReceivedFunction (object o, DataReceivedEventArgs e)
 		{
-			Debug.WriteLine ("Socket received data");
-			Debug.WriteLine (e.Data.ToString ());
+			Console.WriteLine ("Socket received data");
+			Console.WriteLine (e.Data.ToString ());
 		}
 
 		void SocketMessageReceivedFunction (object o, MessageReceivedEventArgs e)
 		{
-			Debug.WriteLine ("Received Message: {0}", e.Message);
+			Console.WriteLine ("Received Message: {0}", e.Message);
 
-			TimeoutTimer.Change (TimeoutTime * 2, Timeout.Infinite);
+//			TimeoutTimer.Change (TimeoutTime * 2, Timeout.Infinite);
+			TimeoutTimer.Stop ();
 
 			var match = Regex.Match (e.Message, socketIOEncodingPattern);
 
@@ -466,41 +470,41 @@ namespace Xamarin.Socket.IO
 			var socketMessageInfo = new MessageID (messageId, endpoint);
 			var	data = match.Groups [5].Value;
 			if (!string.IsNullOrWhiteSpace (data))
-				Debug.WriteLine ("");
+				Console.WriteLine ("");
 
 			JObject jObjData = null;
 
 			switch (messageType) {
 
 			case MessageType.Disconnect:
-				Debug.WriteLine ("Disconnected");
+				Console.WriteLine ("Disconnected");
 				SocketDisconnected (socketMessageInfo, endpoint);
 				break;
 
 			case MessageType.Connect:
-				Debug.WriteLine ("Connected");
+				Console.WriteLine ("Connected");
 				SocketConnected (socketMessageInfo, endpoint);
 				break;
 
 			case MessageType.Heartbeat:
-				Debug.WriteLine ("Heartbeat");
+				Console.WriteLine ("Heartbeat");
 				SendHeartbeat ();
 				break;
 
 			case MessageType.Message:
-				Debug.WriteLine ("Message = {0}", data);
+				Console.WriteLine ("Message = {0}", data);
 				SocketReceivedMessage (socketMessageInfo, data);
 				break;
 
 			case MessageType.Json:
-				Debug.WriteLine ("Json = {0}", data);
+				Console.WriteLine ("Json = {0}", data);
 				if (!string.IsNullOrEmpty (data))
 					jObjData = JObject.Parse (data);
 				SocketReceivedJson (socketMessageInfo, jObjData);
 				break;
 
 			case MessageType.Event:
-				Debug.WriteLine ("Event");
+				Console.WriteLine ("Event");
 				string eventName = "";
 				if (!string.IsNullOrEmpty (data)) {
 					jObjData = JObject.Parse (data);
@@ -515,14 +519,14 @@ namespace Xamarin.Socket.IO
 							if (jObjData != null && jObjData["args"] != null)
 								args = JArray.Parse (jObjData ["args"].ToString ());
 							handler (args.First);
-							Debug.WriteLine ("event: {0} with args: {1}", eventName, args);
+							Console.WriteLine ("event: {0} with args: {1}", eventName, args);
 						}
 					}
 				}
 				break;
 
 			case MessageType.Ack:
-				Debug.WriteLine ("Ack");
+				Console.WriteLine ("Ack");
 				if (!string.IsNullOrEmpty (data)) {
 					var ackMatch = Regex.Match (data, socketAckEncodingPattern);
 					var ackMessageId = int.Parse (ackMatch.Groups [1].Value);
@@ -537,19 +541,19 @@ namespace Xamarin.Socket.IO
 				break;
 
 			case MessageType.Error:
-				Debug.WriteLine ("Error");
+				Console.WriteLine ("Error");
 				SocketReceivedError (socketMessageInfo, data);
 				break;
 
 			case MessageType.Noop:
-				Debug.WriteLine ("Noop");
+				Console.WriteLine ("Noop");
 				break;
 
 			default:
-				Debug.WriteLine ("Something went wrong here...");
+				Console.WriteLine ("Something went wrong here...");
 				if (!string.IsNullOrEmpty (data)) {
 					jObjData = JObject.Parse (data);
-					Debug.WriteLine ("jObjData = {0}", jObjData.ToString ());
+					Console.WriteLine ("jObjData = {0}", jObjData.ToString ());
 				}
 				break;
 			}
@@ -558,20 +562,20 @@ namespace Xamarin.Socket.IO
 				
 		void SendDisconnectMessage (object o, string endPoint = "")
 		{
-			Debug.WriteLine ("Send Disconnect Message");
+			Console.WriteLine ("Send Disconnect Message");
 			WebSocket.Send (string.Format ("{0}::{1}", (int)MessageType.Disconnect, endPoint));
 			if (string.IsNullOrEmpty (endPoint)) {
 				WebSocket.Close ();
-				HeartbeatTimer.Change (0, 0);
+				HeartbeatTimer.Stop ();
 				Connected = false;
 			}
 		}
 
 		void EmitMessage (Message messageObject, string endpoint, string messageId)
 		{
-			Debug.WriteLine ("Emit");
+			Console.WriteLine ("Emit");
 			string message = JsonConvert.SerializeObject (messageObject);
-			Debug.WriteLine (string.Format ("{0}:{1}:{2}:{3}", (int)MessageType.Event, messageId, endpoint, message));
+			Console.WriteLine (string.Format ("{0}:{1}:{2}:{3}", (int)MessageType.Event, messageId, endpoint, message));
 			if (Connected)
 				WebSocket.Send (string.Format ("{0}:{1}:{2}:{3}", (int)MessageType.Event, messageId, endpoint, message));
 		}
