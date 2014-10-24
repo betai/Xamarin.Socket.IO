@@ -1,5 +1,6 @@
 Xamarin.Socket.IO (beta)
 =================
+# this version doesn't currently work with socket.io 1.X - please use socket.io 0.9.X while this repo gets updated
 
 C# interface for socket.io on mobile platforms.
 
