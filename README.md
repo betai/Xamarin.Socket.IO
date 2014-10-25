@@ -6,7 +6,7 @@ C# interface for socket.io on mobile platforms.
 
 This library uses WebSocket4Net for the websocket connections, and Newtonsoft.Json to serialize the objects passed through the socket.
 
-##Running the Test app (OSX)
+##Running the Test app (OSX/Android)
 
 #####Set up the local server
 
